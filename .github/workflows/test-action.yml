@@ -23,7 +23,7 @@ jobs:
         id: add-state
         uses: ./
         with:
-          operation: add
+          operation: set
           issue-number: ${{ inputs.issue-number }}
           key: workflow-test
           value: initial-value
@@ -33,7 +33,7 @@ jobs:
         id: get-state
         uses: ./
         with:
-          operation: set
+          operation: get
           issue-number: ${{ inputs.issue-number }}
           key: workflow-test
           github-token: ${{ secrets.GITHUB_TOKEN }}
