@@ -7,7 +7,7 @@ import * as github from '@actions/github'
 interface Label {
   name: string
   color?: string
-  description?: string
+  description?: string | null
 }
 
 /**
