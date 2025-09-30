@@ -1,20 +1,25 @@
 {
-  "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
-  "version": "0.0.0",
-  "author": "",
+  "name": "state-labels",
+  "description": "GitHub Action for managing issue and PR labels as structured state",
+  "version": "1.0.0",
+  "author": "FidelusAleksander",
   "type": "module",
   "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
+  "homepage": "https://github.com/FidelusAleksander/state-labels",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/FidelusAleksander/state-labels.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/FidelusAleksander/state-labels/issues"
   },
   "keywords": [
-    "actions"
+    "actions",
+    "github",
+    "labels",
+    "state",
+    "issues",
+    "pull-requests"
   ],
   "exports": {
     ".": "./dist/index.js"
@@ -37,7 +42,8 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.11.1"
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.1"
   },
   "devDependencies": {
     "@eslint/compat": "^1.3.2",

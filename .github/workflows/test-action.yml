@@ -1,0 +1,82 @@
+name: Test State Labels Action
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  TEST_ISSUE_NUMBER: 3
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest
+    name: Test State Labels Action
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test Action - Add initial state
+        id: add-state
+        uses: ./
+        with:
+          operation: add
+          issue-number: ${{ env.TEST_ISSUE_NUMBER }}
+          key: workflow-test
+          value: initial-value
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test Action - Get state value
+        id: get-state
+        uses: ./
+        with:
+          operation: get
+          issue-number: ${{ env.TEST_ISSUE_NUMBER }}
+          key: workflow-test
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify get operation and value
+        run: |
+          if [ "${{ steps.get-state.outputs.value }}" != "initial-value" ]; then
+            echo "Expected 'initial-value' but got '${{ steps.get-state.outputs.value }}'"
+            exit 1
+          fi
+          echo "Get operation succeeded: Retrieved value '${{ steps.get-state.outputs.value }}'"
+
+      - name: Test Action - Modify state value
+        id: modify-state
+        uses: ./
+        with:
+          operation: modify
+          issue-number: ${{ env.TEST_ISSUE_NUMBER }}
+          key: workflow-test
+          value: modified-value
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test Action - Get modified state value
+        id: get-modified-state
+        uses: ./
+        with:
+          operation: get
+          issue-number: ${{ env.TEST_ISSUE_NUMBER }}
+          key: workflow-test
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify modified value
+        run: |
+          if [ "${{ steps.get-modified-state.outputs.value }}" != "modified-value" ]; then
+            echo "Expected 'modified-value' but got '${{ steps.get-modified-state.outputs.value }}'"
+            exit 1
+          fi
+          echo "Get modified operation succeeded: Retrieved value '${{ steps.get-modified-state.outputs.value }}'"
+
+      - name: Test Action - Remove state
+        id: remove-state
+        uses: ./
+        with:
+          operation: remove
+          issue-number: ${{ env.TEST_ISSUE_NUMBER }}
+          key: workflow-test
+          github-token: ${{ secrets.GITHUB_TOKEN }}
