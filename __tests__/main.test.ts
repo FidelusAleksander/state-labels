@@ -14,18 +14,30 @@ jest.unstable_mockModule('@actions/github', () => github)
 const { run } = await import('../src/main.js')
 
 describe('State Labels Manager Action', () => {
-  // Mock environment
-  const originalEnv = process.env
+  // Default input values that can be overridden in tests
+  const defaultInputs: Record<string, string> = {
+    operation: 'get',
+    key: 'test-key',
+    value: 'test-value',
+    prefix: 'state',
+    separator: '::',
+    repository: 'test-owner/test-repo',
+    'github-token': 'fake-token',
+    'issue-number': '123'
+  }
+
+  // Helper function to setup inputs for a test
+  function mockInputs(overrides: Record<string, string> = {}) {
+    const inputs = { ...defaultInputs, ...overrides }
+    core.getInput.mockImplementation((name: string) => inputs[name])
+  }
 
   beforeEach(() => {
     // Reset all mock functions
     jest.resetAllMocks()
 
-    // Set default environment
-    process.env = {
-      ...originalEnv,
-      GITHUB_REPOSITORY: 'test-owner/test-repo'
-    }
+    // Set up default mock inputs
+    mockInputs()
 
     // Reset GitHub mock to default state
     github.mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
@@ -40,47 +52,22 @@ describe('State Labels Manager Action', () => {
   })
 
   afterEach(() => {
-    process.env = originalEnv
     jest.resetAllMocks()
   })
 
   describe('Input Validation', () => {
     it('should fail with invalid operation', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'invalid-operation'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'invalid-operation' })
 
       await run()
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        'Invalid operation: invalid-operation. Must be: add, modify, remove, get, get-all'
+        'Invalid operation: invalid-operation. Must be: set, remove, get, get-all'
       )
     })
 
     it('should fail with missing key for operations that require it', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return ''
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'get', key: '' })
 
       await run()
 
@@ -89,46 +76,18 @@ describe('State Labels Manager Action', () => {
       )
     })
 
-    it('should fail with missing value for add/modify operations', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'add'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'test-key'
-          case 'value':
-            return ''
-          default:
-            return ''
-        }
-      })
+    it('should fail with missing value for set operations', async () => {
+      mockInputs({ operation: 'set', value: '' })
 
       await run()
 
       expect(core.setFailed).toHaveBeenCalledWith(
-        'Value is required for operation: add'
+        'Value is required for operation: set'
       )
     })
 
     it('should fail with invalid issue number', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get'
-          case 'issue-number':
-            return 'not-a-number'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'test-key'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ 'issue-number': 'not-a-number' })
 
       await run()
 
@@ -136,22 +95,7 @@ describe('State Labels Manager Action', () => {
     })
 
     it('should fail with invalid repository format', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'test-key'
-          case 'repository':
-            return 'invalid-repo-format'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ repository: 'invalid-repo-format' })
 
       await run()
 
@@ -163,24 +107,7 @@ describe('State Labels Manager Action', () => {
 
   describe('Get Operations', () => {
     it('should get existing state value', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'step'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'get', key: 'step' })
 
       await run()
 
@@ -193,24 +120,7 @@ describe('State Labels Manager Action', () => {
     })
 
     it('should handle non-existent key', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'non-existent'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'get', key: 'non-existent' })
 
       await run()
 
@@ -223,22 +133,7 @@ describe('State Labels Manager Action', () => {
     })
 
     it('should get all state values as JSON', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get-all'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'get-all' })
 
       await run()
 
@@ -257,8 +152,8 @@ describe('State Labels Manager Action', () => {
     })
   })
 
-  describe('Add/Modify Operations', () => {
-    it('should add new state value', async () => {
+  describe('Set Operations', () => {
+    it('should set new state value', async () => {
       // Mock labels without the state we're adding
       github.mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
         data: [
@@ -279,26 +174,7 @@ describe('State Labels Manager Action', () => {
         ]
       })
 
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'add'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'priority'
-          case 'value':
-            return 'high'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'set', key: 'priority', value: 'high' })
 
       await run()
 
@@ -311,31 +187,12 @@ describe('State Labels Manager Action', () => {
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
       expect(core.setOutput).toHaveBeenCalledWith(
         'message',
-        'Added state: priority=high'
+        'Set state: priority=high'
       )
     })
 
-    it('should modify existing state value', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'modify'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'step'
-          case 'value':
-            return '2'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+    it('should set existing state value (update)', async () => {
+      mockInputs({ operation: 'set', key: 'step', value: '2' })
 
       await run()
 
@@ -353,31 +210,12 @@ describe('State Labels Manager Action', () => {
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
       expect(core.setOutput).toHaveBeenCalledWith(
         'message',
-        'Modified state: step=2'
+        'Set state: step=2'
       )
     })
 
     it('should handle numeric values correctly', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'add'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'count'
-          case 'value':
-            return '42'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'set', key: 'count', value: '42' })
 
       await run()
 
@@ -390,25 +228,10 @@ describe('State Labels Manager Action', () => {
     })
 
     it('should handle string values with spaces', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'add'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'description'
-          case 'value':
-            return 'work in progress'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
+      mockInputs({
+        operation: 'set',
+        key: 'description',
+        value: 'work in progress'
       })
 
       await run()
@@ -424,24 +247,7 @@ describe('State Labels Manager Action', () => {
 
   describe('Remove Operations', () => {
     it('should remove existing state key', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'remove'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'step'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'remove', key: 'step' })
 
       await run()
 
@@ -459,24 +265,7 @@ describe('State Labels Manager Action', () => {
     })
 
     it('should handle removal of non-existent key', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'remove'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'non-existent'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'remove', key: 'non-existent' })
 
       await run()
 
@@ -511,23 +300,11 @@ describe('State Labels Manager Action', () => {
         ]
       })
 
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'env'
-          case 'prefix':
-            return 'context'
-          case 'separator':
-            return '__'
-          default:
-            return ''
-        }
+      mockInputs({
+        operation: 'get',
+        key: 'env',
+        prefix: 'context',
+        separator: '__'
       })
 
       await run()
@@ -536,26 +313,13 @@ describe('State Labels Manager Action', () => {
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
     })
 
-    it('should add state with custom format', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'add'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'env'
-          case 'value':
-            return 'staging'
-          case 'prefix':
-            return 'context'
-          case 'separator':
-            return '__'
-          default:
-            return ''
-        }
+    it('should set state with custom format', async () => {
+      mockInputs({
+        operation: 'set',
+        key: 'env',
+        value: 'staging',
+        prefix: 'context',
+        separator: '__'
       })
 
       await run()
@@ -583,24 +347,7 @@ describe('State Labels Manager Action', () => {
         ]
       })
 
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'url'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'get', key: 'url' })
 
       await run()
 
@@ -638,22 +385,7 @@ describe('State Labels Manager Action', () => {
         ]
       })
 
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get-all'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'get-all' })
 
       await run()
 
@@ -692,22 +424,7 @@ describe('State Labels Manager Action', () => {
         ]
       })
 
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get-all'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'prefix':
-            return 'state'
-          case 'separator':
-            return '::'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'get-all' })
 
       await run()
 
@@ -726,20 +443,7 @@ describe('State Labels Manager Action', () => {
         new Error('API Error: Not Found')
       )
 
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'test'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'get', key: 'test' })
 
       await run()
 
@@ -756,57 +460,13 @@ describe('State Labels Manager Action', () => {
         new Error('Network Error')
       )
 
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'add'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'key':
-            return 'test'
-          case 'value':
-            return 'value'
-          default:
-            return ''
-        }
-      })
+      mockInputs({ operation: 'set', key: 'test', value: 'value' })
 
       await run()
 
       expect(core.setFailed).toHaveBeenCalledWith('Network Error')
       expect(core.setOutput).toHaveBeenCalledWith('success', false)
       expect(core.setOutput).toHaveBeenCalledWith('message', 'Network Error')
-    })
-  })
-
-  describe('Environment Variables', () => {
-    it('should use GITHUB_REPOSITORY when repository input is not provided', async () => {
-      core.getInput.mockImplementation((name: string) => {
-        switch (name) {
-          case 'operation':
-            return 'get-all'
-          case 'issue-number':
-            return '123'
-          case 'github-token':
-            return 'fake-token'
-          case 'repository':
-            return '' // Empty repository input
-          default:
-            return ''
-        }
-      })
-
-      await run()
-
-      expect(
-        github.mockOctokit.rest.issues.listLabelsOnIssue
-      ).toHaveBeenCalledWith({
-        owner: 'test-owner',
-        repo: 'test-repo',
-        issue_number: 123
-      })
     })
   })
 })

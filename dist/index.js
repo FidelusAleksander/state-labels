@@ -31312,29 +31312,32 @@ async function run() {
         // Get inputs
         const operation = coreExports.getInput('operation', { required: true });
         const issueNumber = parseInt(coreExports.getInput('issue-number', { required: true }), 10);
-        const githubToken = coreExports.getInput('github-token', { required: true });
+        const githubToken = coreExports.getInput('github-token');
+        const separator = coreExports.getInput('separator');
+        const repository = coreExports.getInput('repository');
+        const prefix = coreExports.getInput('prefix');
         const key = coreExports.getInput('key');
         const value = coreExports.getInput('value');
-        const prefix = coreExports.getInput('prefix') || 'state';
-        const separator = coreExports.getInput('separator') || '::';
-        const repository = coreExports.getInput('repository') || process.env.GITHUB_REPOSITORY || '';
         // Parse repository
         const [owner, repo] = repository.split('/');
         if (!owner || !repo) {
             throw new Error('Invalid repository format. Expected: owner/repo');
         }
         // Validate inputs
-        if (!['add', 'modify', 'remove', 'get', 'get-all'].includes(operation)) {
-            throw new Error(`Invalid operation: ${operation}. Must be: add, modify, remove, get, get-all`);
+        if (!['set', 'remove', 'get', 'get-all'].includes(operation)) {
+            throw new Error(`Invalid operation: ${operation}. Must be: set, remove, get, get-all`);
         }
-        if (['add', 'modify', 'remove', 'get'].includes(operation) && !key) {
+        if (['set', 'remove', 'get'].includes(operation) && !key) {
             throw new Error(`Key is required for operation: ${operation}`);
         }
-        if (['add', 'modify'].includes(operation) && !value) {
+        if (operation === 'set' && !value) {
             throw new Error(`Value is required for operation: ${operation}`);
         }
         if (isNaN(issueNumber)) {
             throw new Error('Invalid issue number');
+        }
+        if (!githubToken) {
+            throw new Error('GitHub token is required');
         }
         // Initialize Octokit
         const octokit = githubExports.getOctokit(githubToken);
@@ -31373,8 +31376,7 @@ async function run() {
                 coreExports.setOutput('message', `Retrieved ${Object.keys(currentState).length} state values`);
                 break;
             }
-            case 'add':
-            case 'modify': {
+            case 'set': {
                 const convertedValue = convertValue(value);
                 const newLabelName = createStateLabelName(key, convertedValue, prefix, separator);
                 // Find and remove any existing state label for this key
@@ -31392,7 +31394,7 @@ async function run() {
                     labels: newLabels
                 });
                 coreExports.setOutput('success', true);
-                coreExports.setOutput('message', `${operation === 'add' ? 'Added' : 'Modified'} state: ${key}=${convertedValue}`);
+                coreExports.setOutput('message', `Set state: ${key}=${convertedValue}`);
                 break;
             }
             case 'remove': {
