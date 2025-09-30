@@ -10,6 +10,7 @@ on:
 
 permissions:
   issues: write
+  contents: read
 
 jobs:
   test-action:
@@ -17,6 +18,7 @@ jobs:
     name: Test State Labels Action
 
     steps:
+      - uses: actions/checkout@v5
       - name: Test Action - Add initial state
         id: add-state
         uses: ./
