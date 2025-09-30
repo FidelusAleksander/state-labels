@@ -1,23 +1,55 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: State Labels Manager
+description:
+  A GitHub Action for managing issue and PR labels as structured state,
+  supporting flexible label formats and CRUD operations
+author: FidelusAleksander
 
 # Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: heart
-  color: red
+  icon: tag
+  color: blue
 
 # Define your inputs here.
 inputs:
-  milliseconds:
-    description: Your input description here
+  operation:
+    description: 'Action to perform: add, modify, remove, get, get-all'
     required: true
-    default: '1000'
+  issue-number:
+    description: 'Issue or PR number to operate on'
+    required: true
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  key:
+    description:
+      'State key to add/modify/remove/get (required for all except get-all)'
+    required: false
+  value:
+    description: 'Value to set for add/modify operations'
+    required: false
+  prefix:
+    description: 'Label prefix (e.g., state)'
+    required: false
+    default: 'state'
+  separator:
+    description: 'Separator between label parts (e.g., ::)'
+    required: false
+    default: '::'
+  repository:
+    description: 'Repository in owner/repo format'
+    required: false
+    default: ${{ github.repository }}
 
 # Define your outputs here.
 outputs:
-  time:
-    description: Your output description here
+  state:
+    description: 'JSON string of all state key/values (for get-all operation)'
+  value:
+    description: 'Value of the requested key (for get operation)'
+  success:
+    description: 'Boolean indicating if the operation succeeded'
+  message:
+    description: 'Status or error message'
 
 runs:
   using: node24
