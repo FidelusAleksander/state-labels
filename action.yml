@@ -12,20 +12,20 @@ branding:
 # Define your inputs here.
 inputs:
   operation:
-    description: 'Action to perform: add, modify, remove, get, get-all'
+    description: 'Action to perform: set, remove, get, get-all'
     required: true
   issue-number:
     description: 'Issue or PR number to operate on'
     required: true
   github-token:
     description: 'GitHub token for authentication'
-    required: true
+    required: false
+    default: ${{ github.token }}
   key:
-    description:
-      'State key to add/modify/remove/get (required for all except get-all)'
+    description: 'State key to set/remove/get (required for all except get-all)'
     required: false
   value:
-    description: 'Value to set for add/modify operations'
+    description: 'Value to set for set operations'
     required: false
   prefix:
     description: 'Label prefix (e.g., state)'

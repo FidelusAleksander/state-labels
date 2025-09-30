@@ -114,13 +114,12 @@ export async function run(): Promise<void> {
       core.getInput('issue-number', { required: true }),
       10
     )
-    const githubToken = core.getInput('github-token', { required: true })
+    const githubToken = core.getInput('github-token')
+    const separator = core.getInput('separator')
+    const repository = core.getInput('repository')
+    const prefix = core.getInput('prefix')
     const key = core.getInput('key')
     const value = core.getInput('value')
-    const prefix = core.getInput('prefix') || 'state'
-    const separator = core.getInput('separator') || '::'
-    const repository =
-      core.getInput('repository') || process.env.GITHUB_REPOSITORY || ''
 
     // Parse repository
     const [owner, repo] = repository.split('/')
@@ -129,22 +128,26 @@ export async function run(): Promise<void> {
     }
 
     // Validate inputs
-    if (!['add', 'modify', 'remove', 'get', 'get-all'].includes(operation)) {
+    if (!['set', 'remove', 'get', 'get-all'].includes(operation)) {
       throw new Error(
-        `Invalid operation: ${operation}. Must be: add, modify, remove, get, get-all`
+        `Invalid operation: ${operation}. Must be: set, remove, get, get-all`
       )
     }
 
-    if (['add', 'modify', 'remove', 'get'].includes(operation) && !key) {
+    if (['set', 'remove', 'get'].includes(operation) && !key) {
       throw new Error(`Key is required for operation: ${operation}`)
     }
 
-    if (['add', 'modify'].includes(operation) && !value) {
+    if (operation === 'set' && !value) {
       throw new Error(`Value is required for operation: ${operation}`)
     }
 
     if (isNaN(issueNumber)) {
       throw new Error('Invalid issue number')
+    }
+
+    if (!githubToken) {
+      throw new Error('GitHub token is required')
     }
 
     // Initialize Octokit
@@ -194,8 +197,7 @@ export async function run(): Promise<void> {
         break
       }
 
-      case 'add':
-      case 'modify': {
+      case 'set': {
         const convertedValue = convertValue(value)
         const newLabelName = createStateLabelName(
           key,
@@ -222,10 +224,7 @@ export async function run(): Promise<void> {
         })
 
         core.setOutput('success', true)
-        core.setOutput(
-          'message',
-          `${operation === 'add' ? 'Added' : 'Modified'} state: ${key}=${convertedValue}`
-        )
+        core.setOutput('message', `Set state: ${key}=${convertedValue}`)
         break
       }
 
