@@ -13,7 +13,7 @@ jest.unstable_mockModule('@actions/github', () => github)
 // mocks are used in place of any actual dependencies.
 const { run } = await import('../src/main.js')
 
-describe('State Labels Manager Action', () => {
+describe('Main Action Orchestration', () => {
   // Default input values that can be overridden in tests
   const defaultInputs: Record<string, string> = {
     operation: 'get',
@@ -290,7 +290,7 @@ describe('State Labels Manager Action', () => {
     })
   })
 
-  describe('Custom Prefix and Separator', () => {
+  describe('Integration Tests', () => {
     it('should work with custom prefix and separator', async () => {
       // Mock labels with custom format
       github.mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
@@ -345,111 +345,7 @@ describe('State Labels Manager Action', () => {
     })
   })
 
-  describe('Label Parsing Edge Cases', () => {
-    it('should handle labels with extra separators in values', async () => {
-      github.mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
-        data: [
-          {
-            id: 1,
-            name: 'state::url::https://example.com/path',
-            color: 'a2eeef',
-            description: '',
-            default: false
-          }
-        ]
-      })
-
-      mockInputs({ operation: 'get', key: 'url' })
-
-      await run()
-
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'value',
-        'https://example.com/path'
-      )
-      expect(core.setOutput).toHaveBeenCalledWith('success', true)
-    })
-
-    it('should ignore labels not matching prefix', async () => {
-      github.mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
-        data: [
-          {
-            id: 1,
-            name: 'bug',
-            color: 'f29513',
-            description: '',
-            default: true
-          },
-          {
-            id: 2,
-            name: 'other::key::value',
-            color: 'a2eeef',
-            description: '',
-            default: false
-          },
-          {
-            id: 3,
-            name: 'state::valid::key',
-            color: 'fbca04',
-            description: '',
-            default: false
-          }
-        ]
-      })
-
-      mockInputs({ operation: 'get-all' })
-
-      await run()
-
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'state',
-        JSON.stringify({
-          valid: 'key'
-        })
-      )
-    })
-
-    it('should handle malformed labels gracefully', async () => {
-      github.mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
-        data: [
-          {
-            id: 1,
-            name: 'state::',
-            color: 'f29513',
-            description: '',
-            default: true
-          },
-          {
-            id: 2,
-            name: 'state::key',
-            color: 'a2eeef',
-            description: '',
-            default: false
-          },
-          {
-            id: 3,
-            name: 'state::valid::value',
-            color: 'fbca04',
-            description: '',
-            default: false
-          }
-        ]
-      })
-
-      mockInputs({ operation: 'get-all' })
-
-      await run()
-
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'state',
-        JSON.stringify({
-          valid: 'value'
-        })
-      )
-    })
-  })
-
-  describe('GitHub API Error Handling', () => {
+  describe('Error Handling', () => {
     it('should handle API errors gracefully', async () => {
       github.mockOctokit.rest.issues.listLabelsOnIssue.mockRejectedValue(
         new Error('API Error: Not Found')
