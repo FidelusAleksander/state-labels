@@ -180,7 +180,7 @@ jobs:
 
 - State is per-issue / per-PR
 - Labels are visible to collaborators
-- Keep key/value lengths reasonable (GitHub label name length limits apply)
+- Keep key-value lengths reasonable (GitHub label name length limits apply)
 
 ## License 🪪
 
