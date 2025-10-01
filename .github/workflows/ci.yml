@@ -54,7 +54,6 @@ jobs:
 
   test-action-pr:
     if: github.event_name == 'pull_request'
-    needs: test-action-issue
     name: Test Action (PR)
     uses: ./.github/workflows/test-action.yml
     with:
