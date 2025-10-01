@@ -208,6 +208,11 @@ describe('State Labels Manager Action', () => {
           'state::step::2'
         ]
       })
+      expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        name: 'state::step::1'
+      })
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
       expect(core.setOutput).toHaveBeenCalledWith(
         'message',

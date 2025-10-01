@@ -31379,6 +31379,11 @@ async function run() {
             case 'set': {
                 const convertedValue = convertValue(value);
                 const newLabelName = createStateLabelName(key, convertedValue, prefix, separator);
+                // Find any existing state label for this key that needs to be replaced
+                const existingLabel = currentLabels.find((label) => {
+                    const parsed = parseStateLabel(label.name, prefix, separator);
+                    return parsed && parsed.key === key;
+                });
                 // Find and remove any existing state label for this key
                 const labelsToKeep = currentLabels.filter((label) => {
                     const parsed = parseStateLabel(label.name, prefix, separator);
@@ -31393,6 +31398,26 @@ async function run() {
                     issue_number: issueNumber,
                     labels: newLabels
                 });
+                // If there was an existing label, attempt to delete it from the repository
+                if (existingLabel) {
+                    try {
+                        await octokit.rest.issues.deleteLabel({
+                            owner,
+                            repo,
+                            name: existingLabel.name
+                        });
+                        coreExports.info(`Deleted old label '${existingLabel.name}' from repository`);
+                    }
+                    catch (deleteLabelError) {
+                        // Log warning but don't fail the operation if label deletion fails
+                        if (deleteLabelError instanceof Error) {
+                            coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: ${deleteLabelError.message}`);
+                        }
+                        else {
+                            coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: Unknown error`);
+                        }
+                    }
+                }
                 coreExports.setOutput('success', true);
                 coreExports.setOutput('message', `Set state: ${key}=${convertedValue}`);
                 break;
