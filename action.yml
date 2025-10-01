@@ -15,8 +15,10 @@ inputs:
     description: 'Action to perform: set, remove, get, get-all'
     required: true
   issue-number:
-    description: 'Issue or PR number to operate on'
-    required: true
+    description:
+      'Issue or PR number to operate on (auto-detected from context if not
+      provided)'
+    required: false
   github-token:
     description: 'GitHub token for authentication'
     required: false

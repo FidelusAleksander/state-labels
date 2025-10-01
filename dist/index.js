@@ -31446,6 +31446,35 @@ async function removeOperation(context, key, currentLabels) {
 }
 
 /**
+ * Resolves the issue number from input or GitHub context
+ * @returns The issue number to operate on
+ * @throws Error if no issue number can be determined
+ */
+function resolveIssueNumber() {
+    const issueNumberInput = coreExports.getInput('issue-number');
+    // If provided as input, use that (validate it's a number)
+    if (issueNumberInput) {
+        const issueNumber = parseInt(issueNumberInput, 10);
+        if (Number.isNaN(issueNumber)) {
+            throw new Error('Invalid issue number provided in input');
+        }
+        return issueNumber;
+    }
+    // Try to get from GitHub context
+    const context = githubExports.context;
+    // Check if we're in an issue event
+    if (context.payload.issue?.number) {
+        return context.payload.issue.number;
+    }
+    // Check if we're in a pull request event
+    if (context.payload.pull_request?.number) {
+        return context.payload.pull_request.number;
+    }
+    // No issue number available
+    throw new Error('No issue or PR number provided as input and none available from GitHub context. ' +
+        'Either provide issue-number as input or run on issue/pull_request events.');
+}
+/**
  * The main function for the action.
  * @returns Resolves when the action is complete.
  */
@@ -31453,7 +31482,7 @@ async function run() {
     try {
         // Get inputs
         const operation = coreExports.getInput('operation', { required: true });
-        const issueNumber = parseInt(coreExports.getInput('issue-number', { required: true }), 10);
+        const issueNumber = resolveIssueNumber();
         const githubToken = coreExports.getInput('github-token');
         const separator = coreExports.getInput('separator');
         const repository = coreExports.getInput('repository');
@@ -31475,9 +31504,7 @@ async function run() {
         if (operation === 'set' && !value) {
             throw new Error(`Value is required for operation: ${operation}`);
         }
-        if (Number.isNaN(issueNumber)) {
-            throw new Error('Invalid issue number');
-        }
+        // Issue number validation is now handled in resolveIssueNumber()
         if (!githubToken) {
             throw new Error('GitHub token is required');
         }
