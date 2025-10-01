@@ -45,7 +45,7 @@ Then get the value in the same, or different workflow run
       key: phase
 
   - name: Use value
-    run: echo "phase: ${{ steps.get-status.outputs.value }}"
+    run: echo "phase: ${{ steps.phase.outputs.value }}"
 
 ```
 
