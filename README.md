@@ -67,18 +67,16 @@ labels remain untouched.
 
 ## Inputs ⚙️
 
-| Input          | Description                                   | Required | Default                    |
-| -------------- | --------------------------------------------- | -------- | -------------------------- |
-| `operation`    | One of `get`, `get-all`, `set`, `remove`      | Yes      | -                          |
-| `issue-number` | Issue or PR number to operate on (auto-detected from context if not provided) | No     | -                          |
-| `key`          | State key (needed for `get`, `set`, `remove`) | No     | -                          |
-| `value`        | State value (needed for `set`)                | No     | -                          |
-| `prefix`       | Label prefix                                  | No       | `state`                    |
-| `separator`    | Separator between prefix, key, value          | No       | `::`                       |
-| `repository`   | Repository in `owner/repo` format             | No       | `${{ github.repository }}` |
-| `github-token` | Token used for API calls                      | No       | `${{ github.token }}`      |
-
-
+| Input          | Description                                                                   | Required | Default                    |
+| -------------- | ----------------------------------------------------------------------------- | -------- | -------------------------- |
+| `operation`    | One of `get`, `get-all`, `set`, `remove`                                      | Yes      | -                          |
+| `issue-number` | Issue or PR number to operate on (auto-detected from context if not provided) | No       | -                          |
+| `key`          | State key (needed for `get`, `set`, `remove`)                                 | No       | -                          |
+| `value`        | State value (needed for `set`)                                                | No       | -                          |
+| `prefix`       | Label prefix                                                                  | No       | `state`                    |
+| `separator`    | Separator between prefix, key, value                                          | No       | `::`                       |
+| `repository`   | Repository in `owner/repo` format                                             | No       | `${{ github.repository }}` |
+| `github-token` | Token used for API calls                                                      | No       | `${{ github.token }}`      |
 
 ## Outputs 📤
 

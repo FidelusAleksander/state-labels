@@ -17,7 +17,7 @@ import {
  */
 function resolveIssueNumber(): number {
   const issueNumberInput = core.getInput('issue-number')
-  
+
   // If provided as input, use that (validate it's a number)
   if (issueNumberInput) {
     const issueNumber = parseInt(issueNumberInput, 10)
@@ -26,20 +26,20 @@ function resolveIssueNumber(): number {
     }
     return issueNumber
   }
-  
+
   // Try to get from GitHub context
   const context = github.context
-  
+
   // Check if we're in an issue event
   if (context.payload.issue?.number) {
     return context.payload.issue.number
   }
-  
+
   // Check if we're in a pull request event
   if (context.payload.pull_request?.number) {
     return context.payload.pull_request.number
   }
-  
+
   // No issue number available
   throw new Error(
     'No issue or PR number provided as input and none available from GitHub context. ' +
