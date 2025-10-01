@@ -24,7 +24,6 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const core = require('@actions/core');
             function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
             const separators = [":", "::", "_", "-"]; // allowed separators with special chars
             const prefixes = ["state","wf","workflow","ci","pipeline","meta"]; // realistic prefixes
