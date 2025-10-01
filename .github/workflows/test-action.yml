@@ -11,22 +11,47 @@ on:
 permissions:
   issues: write
   contents: read
+  pull-requests: write
 
 jobs:
   test-action:
     runs-on: ubuntu-latest
     name: Test State Labels Action
-
     steps:
       - uses: actions/checkout@v5
+      - name: Generate randomized test inputs
+        id: generate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+            const separators = ["::", "__", "--"]; // allowed separators with special chars
+            const prefixes = ["state","wf","workflow","ci","pipeline","meta"]; // realistic prefixes
+            const w1 = ['build','deploy','review','sync','cache','test','lint','stage','release','merge'];
+            const w2 = ['status','mode','phase','state','count','level','tier','flag','cycle','step'];
+            const key = `${pick(w1)}-${pick(w2)}`.replace(/--+/g,'-');
+            const initialValues = ['pending','in-progress','queued','warming','active','open'];
+            const modifiedValues = ['done','complete','finished','processed','idle','closed'];
+            let initial = pick(initialValues);
+            let modified = pick(modifiedValues.filter(v => v !== initial));
+            const prefix = pick(prefixes);
+            const separator = pick(separators);
+            core.info(`Generated test data => prefix='${prefix}' separator='${separator}' key='${key}' initial='${initial}' modified='${modified}'`);
+            core.setOutput('prefix', prefix);
+            core.setOutput('separator', separator);
+            core.setOutput('key', key);
+            core.setOutput('initial', initial);
+            core.setOutput('modified', modified);
       - name: Test Action - Add initial state
         id: add-state
         uses: ./
         with:
           operation: set
           issue-number: ${{ inputs.issue-number }}
-          key: workflow-test
-          value: initial-value
+          key: ${{ steps.generate.outputs.key }}
+          value: ${{ steps.generate.outputs.initial }}
+          prefix: ${{ steps.generate.outputs.prefix }}
+          separator: ${{ steps.generate.outputs.separator }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test Action - Get state value
@@ -35,13 +60,15 @@ jobs:
         with:
           operation: get
           issue-number: ${{ inputs.issue-number }}
-          key: workflow-test
+          key: ${{ steps.generate.outputs.key }}
+          prefix: ${{ steps.generate.outputs.prefix }}
+          separator: ${{ steps.generate.outputs.separator }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify get operation and value
         run: |
-          if [ "${{ steps.get-state.outputs.value }}" != "initial-value" ]; then
-            echo "Expected 'initial-value' but got '${{ steps.get-state.outputs.value }}'"
+          if [ "${{ steps.get-state.outputs.value }}" != "${{ steps.generate.outputs.initial }}" ]; then
+            echo "Expected '${{ steps.generate.outputs.initial }}' but got '${{ steps.get-state.outputs.value }}'"
             exit 1
           fi
           echo "Get operation succeeded: Retrieved value '${{ steps.get-state.outputs.value }}'"
@@ -52,8 +79,10 @@ jobs:
         with:
           operation: set
           issue-number: ${{ inputs.issue-number }}
-          key: workflow-test
-          value: modified-value
+          key: ${{ steps.generate.outputs.key }}
+          value: ${{ steps.generate.outputs.modified }}
+          prefix: ${{ steps.generate.outputs.prefix }}
+          separator: ${{ steps.generate.outputs.separator }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test Action - Get modified state value
@@ -62,13 +91,15 @@ jobs:
         with:
           operation: get
           issue-number: ${{ inputs.issue-number }}
-          key: workflow-test
+          key: ${{ steps.generate.outputs.key }}
+          prefix: ${{ steps.generate.outputs.prefix }}
+          separator: ${{ steps.generate.outputs.separator }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify modified value
         run: |
-          if [ "${{ steps.get-modified-state.outputs.value }}" != "modified-value" ]; then
-            echo "Expected 'modified-value' but got '${{ steps.get-modified-state.outputs.value }}'"
+          if [ "${{ steps.get-modified-state.outputs.value }}" != "${{ steps.generate.outputs.modified }}" ]; then
+            echo "Expected '${{ steps.generate.outputs.modified }}' but got '${{ steps.get-modified-state.outputs.value }}'"
             exit 1
           fi
           echo "Get modified operation succeeded: Retrieved value '${{ steps.get-modified-state.outputs.value }}'"
@@ -79,5 +110,7 @@ jobs:
         with:
           operation: remove
           issue-number: ${{ inputs.issue-number }}
-          key: workflow-test
+          key: ${{ steps.generate.outputs.key }}
+          prefix: ${{ steps.generate.outputs.prefix }}
+          separator: ${{ steps.generate.outputs.separator }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
