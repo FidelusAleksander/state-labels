@@ -31398,25 +31398,46 @@ async function run() {
                 break;
             }
             case 'remove': {
-                // Find and remove the state label for this key
-                const labelsToKeep = currentLabels.filter((label) => {
+                // Find the state label to be removed
+                const labelToRemove = currentLabels.find((label) => {
                     const parsed = parseStateLabel(label.name, prefix, separator);
-                    return !parsed || parsed.key !== key;
+                    return parsed && parsed.key === key;
                 });
-                // Check if we actually found and removed a label
-                const wasRemoved = labelsToKeep.length < currentLabels.length;
-                if (!wasRemoved) {
+                if (!labelToRemove) {
                     coreExports.setOutput('success', false);
                     coreExports.setOutput('message', `Key '${key}' not found`);
                 }
                 else {
-                    // Update labels
+                    // Filter out the label to be removed from the issue
+                    const labelsToKeep = currentLabels.filter((label) => {
+                        const parsed = parseStateLabel(label.name, prefix, separator);
+                        return !parsed || parsed.key !== key;
+                    });
+                    // Update issue labels first
                     await octokit.rest.issues.setLabels({
                         owner,
                         repo,
                         issue_number: issueNumber,
                         labels: labelsToKeep.map((l) => l.name)
                     });
+                    // Then attempt to delete the label from the repository
+                    try {
+                        await octokit.rest.issues.deleteLabel({
+                            owner,
+                            repo,
+                            name: labelToRemove.name
+                        });
+                        coreExports.debug(`Deleted label '${labelToRemove.name}' from repository`);
+                    }
+                    catch (deleteLabelError) {
+                        // Log warning but don't fail the operation if label deletion fails
+                        if (deleteLabelError instanceof Error) {
+                            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: ${deleteLabelError.message}`);
+                        }
+                        else {
+                            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: Unknown error`);
+                        }
+                    }
                     coreExports.setOutput('success', true);
                     coreExports.setOutput('message', `Removed state key: ${key}`);
                 }

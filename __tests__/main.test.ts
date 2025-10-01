@@ -46,6 +46,7 @@ describe('State Labels Manager Action', () => {
     github.mockOctokit.rest.issues.setLabels.mockResolvedValue({
       data: github.mockLabels
     })
+    github.mockOctokit.rest.issues.deleteLabel.mockResolvedValue()
 
     // Re-setup the getOctokit mock after resetAllMocks
     github.getOctokit.mockReturnValue(github.mockOctokit)
@@ -257,6 +258,11 @@ describe('State Labels Manager Action', () => {
         issue_number: 123,
         labels: ['bug', 'state::status::pending', 'enhancement']
       })
+      expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        name: 'state::step::1'
+      })
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
       expect(core.setOutput).toHaveBeenCalledWith(
         'message',
@@ -270,6 +276,7 @@ describe('State Labels Manager Action', () => {
       await run()
 
       expect(github.mockOctokit.rest.issues.setLabels).not.toHaveBeenCalled()
+      expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
       expect(core.setOutput).toHaveBeenCalledWith('success', false)
       expect(core.setOutput).toHaveBeenCalledWith(
         'message',

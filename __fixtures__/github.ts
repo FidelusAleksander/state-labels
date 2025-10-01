@@ -39,12 +39,14 @@ const mockListLabelsOnIssue =
 const mockSetLabels = jest.fn<() => Promise<{ data: typeof mockLabels }>>()
 const mockAddLabels = jest.fn<() => Promise<{ data: typeof mockLabels }>>()
 const mockRemoveLabel = jest.fn<() => Promise<{ data: typeof mockLabels }>>()
+const mockDeleteLabel = jest.fn<() => Promise<void>>()
 
 // Set default mock implementations
 mockListLabelsOnIssue.mockResolvedValue({ data: mockLabels })
 mockSetLabels.mockResolvedValue({ data: mockLabels })
 mockAddLabels.mockResolvedValue({ data: mockLabels })
 mockRemoveLabel.mockResolvedValue({ data: mockLabels })
+mockDeleteLabel.mockResolvedValue()
 
 // Mock Octokit instance
 export const mockOctokit = {
@@ -53,7 +55,8 @@ export const mockOctokit = {
       listLabelsOnIssue: mockListLabelsOnIssue,
       setLabels: mockSetLabels,
       addLabels: mockAddLabels,
-      removeLabel: mockRemoveLabel
+      removeLabel: mockRemoveLabel,
+      deleteLabel: mockDeleteLabel
     }
   }
 }
