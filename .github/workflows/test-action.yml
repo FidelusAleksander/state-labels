@@ -25,7 +25,7 @@ jobs:
         with:
           script: |
             function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-            const separators = [":", "::", "_", "-"]; // allowed separators with special chars
+            const separators = ["::", "__", "--"]; // allowed separators with special chars
             const prefixes = ["state","wf","workflow","ci","pipeline","meta"]; // realistic prefixes
             const w1 = ['build','deploy','review','sync','cache','test','lint','stage','release','merge'];
             const w2 = ['status','mode','phase','state','count','level','tier','flag','cycle','step'];
