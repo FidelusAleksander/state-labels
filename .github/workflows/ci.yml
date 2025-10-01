@@ -45,8 +45,16 @@ jobs:
         id: npm-ci-test
         run: npm run ci-test
 
-  test-action:
-    name: Test Action
+  test-action-issue:
+    name: Test Action (Issue)
     uses: ./.github/workflows/test-action.yml
     with:
       issue-number: 3
+
+  test-action-pr:
+    if: github.event_name == 'pull_request'
+    needs: test-action-issue
+    name: Test Action (PR)
+    uses: ./.github/workflows/test-action.yml
+    with:
+      issue-number: ${{ github.event.pull_request.number }}
