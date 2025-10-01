@@ -100,7 +100,8 @@ Notes about `success`:
   `core.setFailed`) — An operational error (invalid inputs, API/network failure,
   etc.).
 
-This lets you branch on domain misses without treating them as full step failures:
+This lets you branch on domain misses without treating them as full step
+failures:
 
 ## Permissions 🔒
 
