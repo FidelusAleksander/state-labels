@@ -122,18 +122,16 @@ export async function run(): Promise<void> {
     // Set output
     if (result) {
       core.setOutput('success', result.success)
-      core.setOutput('message', result.message)
+      // 'message' output removed; keeping success/value/state only
     }
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) {
       core.setFailed(error.message)
       core.setOutput('success', false)
-      core.setOutput('message', error.message)
     } else {
       core.setFailed('An unknown error occurred')
       core.setOutput('success', false)
-      core.setOutput('message', 'An unknown error occurred')
     }
   }
 }

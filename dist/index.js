@@ -31317,13 +31317,11 @@ async function getOperation(context, key, currentLabels) {
     if (currentValue === undefined) {
         return {
             success: false,
-            message: `Key '${key}' not found`,
             value: null
         };
     }
     return {
         success: true,
-        message: `Retrieved value for key '${key}'`,
         value: currentValue
     };
 }
@@ -31337,7 +31335,6 @@ async function getAllOperation(context, currentLabels) {
     const currentState = extractStateLabels(currentLabels, context.prefix, context.separator);
     return {
         success: true,
-        message: `Retrieved ${Object.keys(currentState).length} state values`,
         state: JSON.stringify(currentState)
     };
 }
@@ -31392,8 +31389,7 @@ async function setOperation(context, key, value, currentLabels) {
         }
     }
     return {
-        success: true,
-        message: `Set state: ${key}=${convertedValue}`
+        success: true
     };
 }
 /**
@@ -31411,8 +31407,7 @@ async function removeOperation(context, key, currentLabels) {
     });
     if (!labelToRemove) {
         return {
-            success: false,
-            message: `Key '${key}' not found`
+            success: false
         };
     }
     // Filter out the label to be removed from the issue
@@ -31446,8 +31441,7 @@ async function removeOperation(context, key, currentLabels) {
         }
     }
     return {
-        success: true,
-        message: `Removed state key: ${key}`
+        success: true
     };
 }
 
@@ -31540,7 +31534,7 @@ async function run() {
         // Set output
         if (result) {
             coreExports.setOutput('success', result.success);
-            coreExports.setOutput('message', result.message);
+            // 'message' output removed; keeping success/value/state only
         }
     }
     catch (error) {
@@ -31548,12 +31542,10 @@ async function run() {
         if (error instanceof Error) {
             coreExports.setFailed(error.message);
             coreExports.setOutput('success', false);
-            coreExports.setOutput('message', error.message);
         }
         else {
             coreExports.setFailed('An unknown error occurred');
             coreExports.setOutput('success', false);
-            coreExports.setOutput('message', 'An unknown error occurred');
         }
     }
 }

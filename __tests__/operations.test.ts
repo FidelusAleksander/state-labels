@@ -45,11 +45,7 @@ describe('Operations', () => {
     it('should get existing state value', async () => {
       const result = await getOperation(mockContext, 'step', github.mockLabels)
 
-      expect(result).toEqual({
-        success: true,
-        message: "Retrieved value for key 'step'",
-        value: '1'
-      })
+      expect(result).toEqual({ success: true, value: '1' })
     })
 
     it('should handle non-existent key', async () => {
@@ -59,11 +55,7 @@ describe('Operations', () => {
         github.mockLabels
       )
 
-      expect(result).toEqual({
-        success: false,
-        message: "Key 'non-existent' not found",
-        value: null
-      })
+      expect(result).toEqual({ success: false, value: null })
     })
 
     it('should work with custom prefix and separator', async () => {
@@ -91,11 +83,7 @@ describe('Operations', () => {
 
       const result = await getOperation(customContext, 'env', customLabels)
 
-      expect(result).toEqual({
-        success: true,
-        message: "Retrieved value for key 'env'",
-        value: 'prod'
-      })
+      expect(result).toEqual({ success: true, value: 'prod' })
     })
   })
 
@@ -105,7 +93,6 @@ describe('Operations', () => {
 
       expect(result).toEqual({
         success: true,
-        message: 'Retrieved 2 state values',
         state: JSON.stringify({
           step: '1',
           status: 'pending'
@@ -126,11 +113,7 @@ describe('Operations', () => {
 
       const result = await getAllOperation(mockContext, labelsWithoutState)
 
-      expect(result).toEqual({
-        success: true,
-        message: 'Retrieved 0 state values',
-        state: JSON.stringify({})
-      })
+      expect(result).toEqual({ success: true, state: JSON.stringify({}) })
     })
   })
 
@@ -166,10 +149,7 @@ describe('Operations', () => {
         issue_number: 123,
         labels: ['bug', 'state::status::pending', 'state::priority::high']
       })
-      expect(result).toEqual({
-        success: true,
-        message: 'Set state: priority=high'
-      })
+      expect(result).toEqual({ success: true })
       expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
     })
 
@@ -197,10 +177,7 @@ describe('Operations', () => {
         repo: 'test-repo',
         name: 'state::step::1'
       })
-      expect(result).toEqual({
-        success: true,
-        message: 'Set state: step=2'
-      })
+      expect(result).toEqual({ success: true })
     })
 
     it('should handle numeric values correctly', async () => {
@@ -217,10 +194,7 @@ describe('Operations', () => {
         issue_number: 123,
         labels: expect.arrayContaining(['state::count::42'])
       })
-      expect(result).toEqual({
-        success: true,
-        message: 'Set state: count=42'
-      })
+      expect(result).toEqual({ success: true })
     })
 
     it('should handle string values with spaces', async () => {
@@ -237,10 +211,7 @@ describe('Operations', () => {
         issue_number: 123,
         labels: expect.arrayContaining(['state::description::work in progress'])
       })
-      expect(result).toEqual({
-        success: true,
-        message: 'Set state: description=work in progress'
-      })
+      expect(result).toEqual({ success: true })
     })
 
     it('should handle label deletion failure gracefully', async () => {
@@ -258,10 +229,7 @@ describe('Operations', () => {
       expect(core.warning).toHaveBeenCalledWith(
         "Failed to delete old label 'state::step::1' from repository: Label deletion failed"
       )
-      expect(result).toEqual({
-        success: true,
-        message: 'Set state: step=2'
-      })
+      expect(result).toEqual({ success: true })
     })
 
     it('should work with custom format', async () => {
@@ -293,10 +261,7 @@ describe('Operations', () => {
         issue_number: 123,
         labels: expect.arrayContaining(['context__env__staging'])
       })
-      expect(result).toEqual({
-        success: true,
-        message: 'Set state: env=staging'
-      })
+      expect(result).toEqual({ success: true })
     })
   })
 
@@ -320,8 +285,7 @@ describe('Operations', () => {
         name: 'state::step::1'
       })
       expect(result).toEqual({
-        success: true,
-        message: 'Removed state key: step'
+        success: true
       })
     })
 
@@ -334,10 +298,7 @@ describe('Operations', () => {
 
       expect(github.mockOctokit.rest.issues.setLabels).not.toHaveBeenCalled()
       expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
-      expect(result).toEqual({
-        success: false,
-        message: "Key 'non-existent' not found"
-      })
+      expect(result).toEqual({ success: false })
     })
 
     it('should handle label deletion failure gracefully', async () => {
@@ -354,10 +315,7 @@ describe('Operations', () => {
       expect(core.warning).toHaveBeenCalledWith(
         "Failed to delete label 'state::step::1' from repository: Label deletion failed"
       )
-      expect(result).toEqual({
-        success: true,
-        message: 'Removed state key: step'
-      })
+      expect(result).toEqual({ success: true })
     })
   })
 })

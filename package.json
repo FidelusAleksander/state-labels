@@ -1,7 +1,7 @@
 {
   "name": "state-labels",
   "description": "GitHub Action for managing issue and PR labels as structured state",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "FidelusAleksander",
   "type": "module",
   "private": true,

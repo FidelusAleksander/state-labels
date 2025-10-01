@@ -8,19 +8,109 @@ A GitHub Action that treats issue & pull request labels as a simple key-value
 store. Persist workflow state across jobs and events without external storage.
 
 - [State Labels :label:](#state-labels-label)
+  - [Example](#example)
+  - [How it works 🧠](#how-it-works-)
+  - [Inputs ⚙️](#inputs-️)
+  - [Outputs 📤](#outputs-)
+  - [Permissions 🔒](#permissions-)
   - [Usage examples 🚀](#usage-examples-)
     - [Setting state values](#setting-state-values)
     - [Getting a single value](#getting-a-single-value)
     - [Getting all state](#getting-all-state)
     - [Removing state](#removing-state)
     - [Custom label format](#custom-label-format)
-  - [Permissions 🔒](#permissions-)
-  - [Inputs ⚙️](#inputs-️)
-  - [Outputs 📤](#outputs-)
-  - [How it works 🧠](#how-it-works-)
-  - [Example: state-driven workflow 🔄](#example-state-driven-workflow-)
-  - [Notes 📎](#notes-)
-  - [License 🪪](#license-)
+
+No database. No artifacts. Just labels with a structured naming convention.
+
+## Example
+
+Set the value of `phase` to `build`
+
+```yaml
+- uses: FidelusAleksander/state-labels@v1
+  with:
+    operation: set
+    key: phase
+    value: build
+```
+
+Then get the value in the same, or different workflow run
+
+```yaml
+
+  - uses: FidelusAleksander/state-labels@v1
+    id: phase
+    with:
+      operation: get
+      key: phase
+
+  - name: Use value
+    run: echo "phase: ${{ steps.get-status.outputs.value }}"
+
+```
+
+## How it works 🧠
+
+Labels are created using a structured format:
+
+```yaml
+{prefix}{separator}{key}{separator}{value}
+```
+
+Defaults to: `state::key::value`
+
+On `set`, any existing label for the same `{prefix}{separator}{key}` is removed
+first.
+
+Only labels starting with the configured prefix are considered. Other repository
+labels remain untouched.
+
+## Inputs ⚙️
+
+| Input          | Description                                   | Required | Default                    |
+| -------------- | --------------------------------------------- | -------- | -------------------------- |
+| `operation`    | One of `get`, `get-all`, `set`, `remove`      | Yes      | -                          |
+| `issue-number` | Issue or PR number to operate on              | Yes      | -                          |
+| `key`          | State key (needed for `get`, `set`, `remove`) | No\*     | -                          |
+| `value`        | State value (needed for `set`)                | No\*     | -                          |
+| `prefix`       | Label prefix                                  | No       | `state`                    |
+| `separator`    | Separator between prefix, key, value          | No       | `::`                       |
+| `repository`   | Repository in `owner/repo` format             | No       | `${{ github.repository }}` |
+| `github-token` | Token used for API calls                      | No       | `${{ github.token }}`      |
+
+- `key` required for `get`, `set`, `remove`; `value` required for `set`.
+- `issue-number` is always required (pass `${{ github.event.issue.number }}` or
+  `${{ github.event.pull_request.number }}` depending on the event).
+
+## Outputs 📤
+
+| Output    | Description                               | When returned |
+| --------- | ----------------------------------------- | ------------- |
+| `value`   | Retrieved value (string/number)           | `get`         |
+| `state`   | All state as JSON string                  | `get-all`     |
+| `success` | Boolean indicating if operation succeeded | all           |
+
+Notes about `success`:
+
+- `success = true` — The requested operation completed logically (value found,
+  state set/removed, etc.).
+- `success = false` and the step did NOT fail — A soft/expected domain miss
+  (currently only: key not found for `get` / `remove`).
+- `success = false` and the step failed (the action marked the run with
+  `core.setFailed`) — An operational error (invalid inputs, API/network failure,
+  etc.).
+
+This lets you branch on domain misses without treating them as full step failures:
+
+## Permissions 🔒
+
+Minimum required permissions (repo-level or workflow `permissions:` block):
+
+```yaml
+permissions:
+  issues: write
+  pull-requests: write
+```
 
 ## Usage examples 🚀
 
@@ -41,9 +131,6 @@ store. Persist workflow state across jobs and events without external storage.
     key: review-count
     value: '3'
 ```
-
-> [!NOTE] Updating a value with automatically removes the old label from the
-> repository
 
 ### Getting a single value
 
@@ -100,88 +187,3 @@ Example get-all output:
 ```
 
 Creates label: `workflow__env__production`
-
-## Permissions 🔒
-
-Minimum required permissions (repo-level or workflow `permissions:` block):
-
-```yaml
-permissions:
-  issues: write
-  pull-requests: write
-```
-
-## Inputs ⚙️
-
-| Input          | Description                                   | Required | Default                    |
-| -------------- | --------------------------------------------- | -------- | -------------------------- |
-| `operation`    | One of `get`, `get-all`, `set`, `remove`      | Yes      | -                          |
-| `issue-number` | Issue or PR number to operate on              | Yes      | -                          |
-| `key`          | State key (needed for `get`, `set`, `remove`) | No\*     | -                          |
-| `value`        | State value (needed for `set`)                | No\*     | -                          |
-| `prefix`       | Label prefix                                  | No       | `state`                    |
-| `separator`    | Separator between prefix, key, value          | No       | `::`                       |
-| `repository`   | Repository in `owner/repo` format             | No       | `${{ github.repository }}` |
-| `github-token` | Token used for API calls                      | No       | `${{ github.token }}`      |
-
-- `key` required for `get`, `set`, `remove`; `value` required for `set`.
-- `issue-number` is always required (pass `${{ github.event.issue.number }}` or
-  `${{ github.event.pull_request.number }}` depending on the event).
-
-## Outputs 📤
-
-| Output    | Description                               | When returned |
-| --------- | ----------------------------------------- | ------------- |
-| `value`   | Retrieved value (string/number)           | `get`         |
-| `state`   | All state as JSON string                  | `get-all`     |
-| `success` | Boolean indicating if operation succeeded | all           |
-| `message` | Human-readable status / error description | all           |
-
-## How it works 🧠
-
-Labels are created using a structured format:
-
-```yaml
-{prefix}{separator}{key}{separator}{value}
-```
-
-Defaults to: `state::status::in-progress`
-
-On `set`, any existing label for the same `{prefix}{separator}{key}` is removed
-first.
-
-Only labels starting with the configured prefix are considered. Other repository
-labels remain untouched.
-
-## Example: state-driven workflow 🔄
-
-```yaml
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: FidelusAleksander/state-labels@v1
-        with:
-          operation: set
-          key: phase
-          value: build
-
-      - uses: FidelusAleksander/state-labels@v1
-        id: phase
-        with:
-          operation: get
-          key: phase
-
-      - if: steps.phase.outputs.value == 'build'
-        run: echo "Do build things"
-```
-
-## Notes 📎
-
-- State is per-issue / per-PR
-- Labels are visible to collaborators
-- Keep key-value lengths reasonable (GitHub label name length limits apply)
-
-## License 🪪
-
-MIT – see [LICENSE](./LICENSE)
