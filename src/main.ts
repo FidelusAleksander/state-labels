@@ -3,6 +3,7 @@ import * as github from '@actions/github'
 import { extractStateLabels } from './labels.js'
 import {
   type OperationContext,
+  type OperationOutput,
   getOperation,
   getAllOperation,
   setOperation,
@@ -49,7 +50,7 @@ export async function run(): Promise<void> {
       throw new Error(`Value is required for operation: ${operation}`)
     }
 
-    if (isNaN(issueNumber)) {
+    if (Number.isNaN(issueNumber)) {
       throw new Error('Invalid issue number')
     }
 
@@ -89,7 +90,7 @@ export async function run(): Promise<void> {
     }
 
     // Perform the requested operation
-    let result
+    let result: OperationOutput | undefined
     switch (operation) {
       case 'get': {
         result = await getOperation(operationContext, key, currentLabels)

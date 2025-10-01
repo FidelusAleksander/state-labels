@@ -93,7 +93,7 @@ export function extractStateLabels(
 export function convertValue(value: string): string {
   // Try to convert to integer if it's a valid number
   const num = parseInt(value, 10)
-  if (!isNaN(num) && num.toString() === value) {
+  if (!Number.isNaN(num) && num.toString() === value) {
     return num.toString()
   }
   return value

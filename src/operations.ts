@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import { getOctokit } from '@actions/github'
+import type { getOctokit } from '@actions/github'
 import type { Label } from './labels.js'
 import {
   parseStateLabel,

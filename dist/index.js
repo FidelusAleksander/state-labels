@@ -31298,7 +31298,7 @@ function extractStateLabels(labels, prefix, separator) {
 function convertValue(value) {
     // Try to convert to integer if it's a valid number
     const num = parseInt(value, 10);
-    if (!isNaN(num) && num.toString() === value) {
+    if (!Number.isNaN(num) && num.toString() === value) {
         return num.toString();
     }
     return value;
@@ -31481,7 +31481,7 @@ async function run() {
         if (operation === 'set' && !value) {
             throw new Error(`Value is required for operation: ${operation}`);
         }
-        if (isNaN(issueNumber)) {
+        if (Number.isNaN(issueNumber)) {
             throw new Error('Invalid issue number');
         }
         if (!githubToken) {
