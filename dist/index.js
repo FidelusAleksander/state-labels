@@ -31341,10 +31341,10 @@ async function run() {
         }
         // Initialize Octokit
         const octokit = githubExports.getOctokit(githubToken);
-        coreExports.debug(`Performing operation: ${operation}`);
-        coreExports.debug(`Issue number: ${issueNumber}`);
-        coreExports.debug(`Repository: ${owner}/${repo}`);
-        coreExports.debug(`Prefix: ${prefix}, Separator: ${separator}`);
+        coreExports.info(`Performing operation: ${operation}`);
+        coreExports.info(`Issue number: ${issueNumber}`);
+        coreExports.info(`Repository: ${owner}/${repo}`);
+        coreExports.info(`Prefix: ${prefix}, Separator: ${separator}`);
         // Get current labels for the issue
         const { data: currentLabels } = await octokit.rest.issues.listLabelsOnIssue({
             owner,
@@ -31353,7 +31353,7 @@ async function run() {
         });
         // Extract current state
         const currentState = extractStateLabels(currentLabels, prefix, separator);
-        coreExports.debug(`Current state: ${JSON.stringify(currentState)}`);
+        coreExports.info(`Current state: ${JSON.stringify(currentState)}`);
         // Perform the requested operation
         switch (operation) {
             case 'get': {
@@ -31427,7 +31427,7 @@ async function run() {
                             repo,
                             name: labelToRemove.name
                         });
-                        coreExports.debug(`Deleted label '${labelToRemove.name}' from repository`);
+                        coreExports.info(`Deleted label '${labelToRemove.name}' from repository`);
                     }
                     catch (deleteLabelError) {
                         // Log warning but don't fail the operation if label deletion fails

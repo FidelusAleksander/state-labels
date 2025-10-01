@@ -153,10 +153,10 @@ export async function run(): Promise<void> {
     // Initialize Octokit
     const octokit = github.getOctokit(githubToken)
 
-    core.debug(`Performing operation: ${operation}`)
-    core.debug(`Issue number: ${issueNumber}`)
-    core.debug(`Repository: ${owner}/${repo}`)
-    core.debug(`Prefix: ${prefix}, Separator: ${separator}`)
+    core.info(`Performing operation: ${operation}`)
+    core.info(`Issue number: ${issueNumber}`)
+    core.info(`Repository: ${owner}/${repo}`)
+    core.info(`Prefix: ${prefix}, Separator: ${separator}`)
 
     // Get current labels for the issue
     const { data: currentLabels } = await octokit.rest.issues.listLabelsOnIssue(
@@ -169,7 +169,7 @@ export async function run(): Promise<void> {
 
     // Extract current state
     const currentState = extractStateLabels(currentLabels, prefix, separator)
-    core.debug(`Current state: ${JSON.stringify(currentState)}`)
+    core.info(`Current state: ${JSON.stringify(currentState)}`)
 
     // Perform the requested operation
     switch (operation) {
@@ -260,7 +260,7 @@ export async function run(): Promise<void> {
               repo,
               name: labelToRemove.name
             })
-            core.debug(`Deleted label '${labelToRemove.name}' from repository`)
+            core.info(`Deleted label '${labelToRemove.name}' from repository`)
           } catch (deleteLabelError) {
             // Log warning but don't fail the operation if label deletion fails
             if (deleteLabelError instanceof Error) {
