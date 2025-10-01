@@ -48,8 +48,6 @@ outputs:
     description: 'Value of the requested key (for get operation)'
   success:
     description: 'Boolean indicating if the operation succeeded'
-  message:
-    description: 'Status or error message'
 
 runs:
   using: node24

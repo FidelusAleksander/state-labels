@@ -114,10 +114,6 @@ describe('Main Action Orchestration', () => {
 
       expect(core.setOutput).toHaveBeenCalledWith('value', '1')
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'message',
-        "Retrieved value for key 'step'"
-      )
     })
 
     it('should handle non-existent key', async () => {
@@ -127,10 +123,6 @@ describe('Main Action Orchestration', () => {
 
       expect(core.setOutput).toHaveBeenCalledWith('value', null)
       expect(core.setOutput).toHaveBeenCalledWith('success', false)
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'message',
-        "Key 'non-existent' not found"
-      )
     })
 
     it('should get all state values as JSON', async () => {
@@ -146,10 +138,6 @@ describe('Main Action Orchestration', () => {
         })
       )
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'message',
-        'Retrieved 2 state values'
-      )
     })
   })
 
@@ -186,10 +174,6 @@ describe('Main Action Orchestration', () => {
         labels: ['bug', 'state::status::pending', 'state::priority::high']
       })
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'message',
-        'Set state: priority=high'
-      )
     })
 
     it('should set existing state value (update)', async () => {
@@ -214,10 +198,6 @@ describe('Main Action Orchestration', () => {
         name: 'state::step::1'
       })
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'message',
-        'Set state: step=2'
-      )
     })
 
     it('should handle numeric values correctly', async () => {
@@ -269,10 +249,6 @@ describe('Main Action Orchestration', () => {
         name: 'state::step::1'
       })
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'message',
-        'Removed state key: step'
-      )
     })
 
     it('should handle removal of non-existent key', async () => {
@@ -283,10 +259,6 @@ describe('Main Action Orchestration', () => {
       expect(github.mockOctokit.rest.issues.setLabels).not.toHaveBeenCalled()
       expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
       expect(core.setOutput).toHaveBeenCalledWith('success', false)
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'message',
-        "Key 'non-existent' not found"
-      )
     })
   })
 
@@ -357,10 +329,6 @@ describe('Main Action Orchestration', () => {
 
       expect(core.setFailed).toHaveBeenCalledWith('API Error: Not Found')
       expect(core.setOutput).toHaveBeenCalledWith('success', false)
-      expect(core.setOutput).toHaveBeenCalledWith(
-        'message',
-        'API Error: Not Found'
-      )
     })
 
     it('should handle network errors', async () => {
@@ -374,7 +342,6 @@ describe('Main Action Orchestration', () => {
 
       expect(core.setFailed).toHaveBeenCalledWith('Network Error')
       expect(core.setOutput).toHaveBeenCalledWith('success', false)
-      expect(core.setOutput).toHaveBeenCalledWith('message', 'Network Error')
     })
   })
 })

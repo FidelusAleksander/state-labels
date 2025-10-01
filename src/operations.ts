@@ -25,7 +25,6 @@ export interface OperationContext {
  */
 export interface OperationOutput {
   success: boolean
-  message: string
   value?: string | null
   state?: string
 }
@@ -52,14 +51,12 @@ export async function getOperation(
   if (currentValue === undefined) {
     return {
       success: false,
-      message: `Key '${key}' not found`,
       value: null
     }
   }
 
   return {
     success: true,
-    message: `Retrieved value for key '${key}'`,
     value: currentValue
   }
 }
@@ -82,7 +79,6 @@ export async function getAllOperation(
 
   return {
     success: true,
-    message: `Retrieved ${Object.keys(currentState).length} state values`,
     state: JSON.stringify(currentState)
   }
 }
@@ -164,8 +160,7 @@ export async function setOperation(
   }
 
   return {
-    success: true,
-    message: `Set state: ${key}=${convertedValue}`
+    success: true
   }
 }
 
@@ -193,8 +188,7 @@ export async function removeOperation(
 
   if (!labelToRemove) {
     return {
-      success: false,
-      message: `Key '${key}' not found`
+      success: false
     }
   }
 
@@ -238,7 +232,6 @@ export async function removeOperation(
   }
 
   return {
-    success: true,
-    message: `Removed state key: ${key}`
+    success: true
   }
 }
