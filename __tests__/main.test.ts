@@ -56,6 +56,79 @@ describe('Main Action Orchestration', () => {
     jest.resetAllMocks()
   })
 
+  describe('Issue Number Resolution', () => {
+    it('should use explicit issue number input when provided', async () => {
+      mockInputs({ operation: 'get', key: 'test', 'issue-number': '456' })
+      github.mockContextForIssue(123) // Different from input
+
+      await run()
+
+      expect(
+        github.mockOctokit.rest.issues.listLabelsOnIssue
+      ).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        issue_number: 456 // Should use input, not context
+      })
+    })
+
+    it('should auto-detect issue number from issue context when input not provided', async () => {
+      mockInputs({ operation: 'get', key: 'test', 'issue-number': '' })
+      github.mockContextForIssue(789)
+
+      await run()
+
+      expect(
+        github.mockOctokit.rest.issues.listLabelsOnIssue
+      ).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        issue_number: 789
+      })
+    })
+
+    it('should auto-detect PR number from pull request context when input not provided', async () => {
+      mockInputs({ operation: 'get', key: 'test', 'issue-number': '' })
+      github.mockContextForPR(555)
+
+      await run()
+
+      expect(
+        github.mockOctokit.rest.issues.listLabelsOnIssue
+      ).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        issue_number: 555
+      })
+    })
+
+    it('should fail when no issue number provided and no context available', async () => {
+      mockInputs({ operation: 'get', key: 'test', 'issue-number': '' })
+      github.mockContextForOtherEvent()
+
+      await run()
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        'No issue or PR number provided as input and none available from GitHub context. ' +
+          'Either provide issue-number as input or run on issue/pull_request events.'
+      )
+    })
+
+    it('should fail with invalid issue number input', async () => {
+      mockInputs({
+        operation: 'get',
+        key: 'test',
+        'issue-number': 'not-a-number'
+      })
+
+      await run()
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        'Invalid issue number provided in input'
+      )
+    })
+  })
+
   describe('Input Validation', () => {
     it('should fail with invalid operation', async () => {
       mockInputs({ operation: 'invalid-operation' })
@@ -85,14 +158,6 @@ describe('Main Action Orchestration', () => {
       expect(core.setFailed).toHaveBeenCalledWith(
         'Value is required for operation: set'
       )
-    })
-
-    it('should fail with invalid issue number', async () => {
-      mockInputs({ 'issue-number': 'not-a-number' })
-
-      await run()
-
-      expect(core.setFailed).toHaveBeenCalledWith('Invalid issue number')
     })
 
     it('should fail with invalid repository format', async () => {

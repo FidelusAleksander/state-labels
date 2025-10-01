@@ -71,5 +71,30 @@ export const context = {
   issue: {
     number: 123
   },
-  payload: {}
+  payload: {
+    issue: {
+      number: 123
+    }
+  }
 } as typeof github.context
+
+// Helper to set up context for different event types
+export function mockContextForIssue(issueNumber: number) {
+  context.payload = {
+    issue: {
+      number: issueNumber
+    }
+  }
+}
+
+export function mockContextForPR(prNumber: number) {
+  context.payload = {
+    pull_request: {
+      number: prNumber
+    }
+  }
+}
+
+export function mockContextForOtherEvent() {
+  context.payload = {}
+}
