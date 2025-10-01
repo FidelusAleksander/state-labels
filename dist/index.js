@@ -31298,11 +31298,159 @@ function extractStateLabels(labels, prefix, separator) {
 function convertValue(value) {
     // Try to convert to integer if it's a valid number
     const num = parseInt(value, 10);
-    if (!isNaN(num) && num.toString() === value) {
+    if (!Number.isNaN(num) && num.toString() === value) {
         return num.toString();
     }
     return value;
 }
+
+/**
+ * Get a single state value by key
+ * @param context - Operation context
+ * @param key - The state key to retrieve
+ * @param currentLabels - Current labels on the issue
+ * @returns Operation output
+ */
+async function getOperation(context, key, currentLabels) {
+    const currentState = extractStateLabels(currentLabels, context.prefix, context.separator);
+    const currentValue = currentState[key];
+    if (currentValue === undefined) {
+        return {
+            success: false,
+            message: `Key '${key}' not found`,
+            value: null
+        };
+    }
+    return {
+        success: true,
+        message: `Retrieved value for key '${key}'`,
+        value: currentValue
+    };
+}
+/**
+ * Get all state values
+ * @param context - Operation context
+ * @param currentLabels - Current labels on the issue
+ * @returns Operation output
+ */
+async function getAllOperation(context, currentLabels) {
+    const currentState = extractStateLabels(currentLabels, context.prefix, context.separator);
+    return {
+        success: true,
+        message: `Retrieved ${Object.keys(currentState).length} state values`,
+        state: JSON.stringify(currentState)
+    };
+}
+/**
+ * Set a state value (create or update)
+ * @param context - Operation context
+ * @param key - The state key to set
+ * @param value - The state value to set
+ * @param currentLabels - Current labels on the issue
+ * @returns Operation output
+ */
+async function setOperation(context, key, value, currentLabels) {
+    const convertedValue = convertValue(value);
+    const newLabelName = createStateLabelName(key, convertedValue, context.prefix, context.separator);
+    // Find any existing state label for this key that needs to be replaced
+    const existingLabel = currentLabels.find((label) => {
+        const parsed = parseStateLabel(label.name, context.prefix, context.separator);
+        return parsed && parsed.key === key;
+    });
+    // Find and remove any existing state label for this key
+    const labelsToKeep = currentLabels.filter((label) => {
+        const parsed = parseStateLabel(label.name, context.prefix, context.separator);
+        return !parsed || parsed.key !== key;
+    });
+    // Add the new state label to the list
+    const newLabels = [...labelsToKeep.map((l) => l.name), newLabelName];
+    // Update labels
+    await context.octokit.rest.issues.setLabels({
+        owner: context.owner,
+        repo: context.repo,
+        issue_number: context.issueNumber,
+        labels: newLabels
+    });
+    // If there was an existing label, attempt to delete it from the repository
+    if (existingLabel) {
+        try {
+            await context.octokit.rest.issues.deleteLabel({
+                owner: context.owner,
+                repo: context.repo,
+                name: existingLabel.name
+            });
+            coreExports.info(`Deleted old label '${existingLabel.name}' from repository`);
+        }
+        catch (deleteLabelError) {
+            // Log warning but don't fail the operation if label deletion fails
+            if (deleteLabelError instanceof Error) {
+                coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: ${deleteLabelError.message}`);
+            }
+            else {
+                coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: Unknown error`);
+            }
+        }
+    }
+    return {
+        success: true,
+        message: `Set state: ${key}=${convertedValue}`
+    };
+}
+/**
+ * Remove a state key
+ * @param context - Operation context
+ * @param key - The state key to remove
+ * @param currentLabels - Current labels on the issue
+ * @returns Operation output
+ */
+async function removeOperation(context, key, currentLabels) {
+    // Find the state label to be removed
+    const labelToRemove = currentLabels.find((label) => {
+        const parsed = parseStateLabel(label.name, context.prefix, context.separator);
+        return parsed && parsed.key === key;
+    });
+    if (!labelToRemove) {
+        return {
+            success: false,
+            message: `Key '${key}' not found`
+        };
+    }
+    // Filter out the label to be removed from the issue
+    const labelsToKeep = currentLabels.filter((label) => {
+        const parsed = parseStateLabel(label.name, context.prefix, context.separator);
+        return !parsed || parsed.key !== key;
+    });
+    // Update issue labels first
+    await context.octokit.rest.issues.setLabels({
+        owner: context.owner,
+        repo: context.repo,
+        issue_number: context.issueNumber,
+        labels: labelsToKeep.map((l) => l.name)
+    });
+    // Then attempt to delete the label from the repository
+    try {
+        await context.octokit.rest.issues.deleteLabel({
+            owner: context.owner,
+            repo: context.repo,
+            name: labelToRemove.name
+        });
+        coreExports.info(`Deleted label '${labelToRemove.name}' from repository`);
+    }
+    catch (deleteLabelError) {
+        // Log warning but don't fail the operation if label deletion fails
+        if (deleteLabelError instanceof Error) {
+            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: ${deleteLabelError.message}`);
+        }
+        else {
+            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: Unknown error`);
+        }
+    }
+    return {
+        success: true,
+        message: `Removed state key: ${key}`
+    };
+}
+
 /**
  * The main function for the action.
  * @returns Resolves when the action is complete.
@@ -31333,7 +31481,7 @@ async function run() {
         if (operation === 'set' && !value) {
             throw new Error(`Value is required for operation: ${operation}`);
         }
-        if (isNaN(issueNumber)) {
+        if (Number.isNaN(issueNumber)) {
             throw new Error('Invalid issue number');
         }
         if (!githubToken) {
@@ -31354,120 +31502,45 @@ async function run() {
         // Extract current state
         const currentState = extractStateLabels(currentLabels, prefix, separator);
         coreExports.info(`Current state: ${JSON.stringify(currentState)}`);
+        // Create operation context
+        const operationContext = {
+            octokit,
+            owner,
+            repo,
+            issueNumber,
+            prefix,
+            separator
+        };
         // Perform the requested operation
+        let result;
         switch (operation) {
             case 'get': {
-                const currentValue = currentState[key];
-                if (currentValue === undefined) {
-                    coreExports.setOutput('value', null);
-                    coreExports.setOutput('success', false);
-                    coreExports.setOutput('message', `Key '${key}' not found`);
-                }
-                else {
-                    coreExports.setOutput('value', currentValue);
-                    coreExports.setOutput('success', true);
-                    coreExports.setOutput('message', `Retrieved value for key '${key}'`);
+                result = await getOperation(operationContext, key, currentLabels);
+                if (result.value !== undefined) {
+                    coreExports.setOutput('value', result.value);
                 }
                 break;
             }
             case 'get-all': {
-                coreExports.setOutput('state', JSON.stringify(currentState));
-                coreExports.setOutput('success', true);
-                coreExports.setOutput('message', `Retrieved ${Object.keys(currentState).length} state values`);
+                result = await getAllOperation(operationContext, currentLabels);
+                if (result.state !== undefined) {
+                    coreExports.setOutput('state', result.state);
+                }
                 break;
             }
             case 'set': {
-                const convertedValue = convertValue(value);
-                const newLabelName = createStateLabelName(key, convertedValue, prefix, separator);
-                // Find any existing state label for this key that needs to be replaced
-                const existingLabel = currentLabels.find((label) => {
-                    const parsed = parseStateLabel(label.name, prefix, separator);
-                    return parsed && parsed.key === key;
-                });
-                // Find and remove any existing state label for this key
-                const labelsToKeep = currentLabels.filter((label) => {
-                    const parsed = parseStateLabel(label.name, prefix, separator);
-                    return !parsed || parsed.key !== key;
-                });
-                // Add the new state label to the list
-                const newLabels = [...labelsToKeep.map((l) => l.name), newLabelName];
-                // Update labels
-                await octokit.rest.issues.setLabels({
-                    owner,
-                    repo,
-                    issue_number: issueNumber,
-                    labels: newLabels
-                });
-                // If there was an existing label, attempt to delete it from the repository
-                if (existingLabel) {
-                    try {
-                        await octokit.rest.issues.deleteLabel({
-                            owner,
-                            repo,
-                            name: existingLabel.name
-                        });
-                        coreExports.info(`Deleted old label '${existingLabel.name}' from repository`);
-                    }
-                    catch (deleteLabelError) {
-                        // Log warning but don't fail the operation if label deletion fails
-                        if (deleteLabelError instanceof Error) {
-                            coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: ${deleteLabelError.message}`);
-                        }
-                        else {
-                            coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: Unknown error`);
-                        }
-                    }
-                }
-                coreExports.setOutput('success', true);
-                coreExports.setOutput('message', `Set state: ${key}=${convertedValue}`);
+                result = await setOperation(operationContext, key, value, currentLabels);
                 break;
             }
             case 'remove': {
-                // Find the state label to be removed
-                const labelToRemove = currentLabels.find((label) => {
-                    const parsed = parseStateLabel(label.name, prefix, separator);
-                    return parsed && parsed.key === key;
-                });
-                if (!labelToRemove) {
-                    coreExports.setOutput('success', false);
-                    coreExports.setOutput('message', `Key '${key}' not found`);
-                }
-                else {
-                    // Filter out the label to be removed from the issue
-                    const labelsToKeep = currentLabels.filter((label) => {
-                        const parsed = parseStateLabel(label.name, prefix, separator);
-                        return !parsed || parsed.key !== key;
-                    });
-                    // Update issue labels first
-                    await octokit.rest.issues.setLabels({
-                        owner,
-                        repo,
-                        issue_number: issueNumber,
-                        labels: labelsToKeep.map((l) => l.name)
-                    });
-                    // Then attempt to delete the label from the repository
-                    try {
-                        await octokit.rest.issues.deleteLabel({
-                            owner,
-                            repo,
-                            name: labelToRemove.name
-                        });
-                        coreExports.info(`Deleted label '${labelToRemove.name}' from repository`);
-                    }
-                    catch (deleteLabelError) {
-                        // Log warning but don't fail the operation if label deletion fails
-                        if (deleteLabelError instanceof Error) {
-                            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: ${deleteLabelError.message}`);
-                        }
-                        else {
-                            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: Unknown error`);
-                        }
-                    }
-                    coreExports.setOutput('success', true);
-                    coreExports.setOutput('message', `Removed state key: ${key}`);
-                }
+                result = await removeOperation(operationContext, key, currentLabels);
                 break;
             }
+        }
+        // Set output
+        if (result) {
+            coreExports.setOutput('success', result.success);
+            coreExports.setOutput('message', result.message);
         }
     }
     catch (error) {
