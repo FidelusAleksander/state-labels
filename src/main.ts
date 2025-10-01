@@ -153,10 +153,10 @@ export async function run(): Promise<void> {
     // Initialize Octokit
     const octokit = github.getOctokit(githubToken)
 
-    core.debug(`Performing operation: ${operation}`)
-    core.debug(`Issue number: ${issueNumber}`)
-    core.debug(`Repository: ${owner}/${repo}`)
-    core.debug(`Prefix: ${prefix}, Separator: ${separator}`)
+    core.info(`Performing operation: ${operation}`)
+    core.info(`Issue number: ${issueNumber}`)
+    core.info(`Repository: ${owner}/${repo}`)
+    core.info(`Prefix: ${prefix}, Separator: ${separator}`)
 
     // Get current labels for the issue
     const { data: currentLabels } = await octokit.rest.issues.listLabelsOnIssue(
@@ -169,7 +169,7 @@ export async function run(): Promise<void> {
 
     // Extract current state
     const currentState = extractStateLabels(currentLabels, prefix, separator)
-    core.debug(`Current state: ${JSON.stringify(currentState)}`)
+    core.info(`Current state: ${JSON.stringify(currentState)}`)
 
     // Perform the requested operation
     switch (operation) {
@@ -206,6 +206,12 @@ export async function run(): Promise<void> {
           separator
         )
 
+        // Find any existing state label for this key that needs to be replaced
+        const existingLabel = currentLabels.find((label) => {
+          const parsed = parseStateLabel(label.name, prefix, separator)
+          return parsed && parsed.key === key
+        })
+
         // Find and remove any existing state label for this key
         const labelsToKeep = currentLabels.filter((label) => {
           const parsed = parseStateLabel(label.name, prefix, separator)
@@ -223,32 +229,81 @@ export async function run(): Promise<void> {
           labels: newLabels
         })
 
+        // If there was an existing label, attempt to delete it from the repository
+        if (existingLabel) {
+          try {
+            await octokit.rest.issues.deleteLabel({
+              owner,
+              repo,
+              name: existingLabel.name
+            })
+            core.info(
+              `Deleted old label '${existingLabel.name}' from repository`
+            )
+          } catch (deleteLabelError) {
+            // Log warning but don't fail the operation if label deletion fails
+            if (deleteLabelError instanceof Error) {
+              core.warning(
+                `Failed to delete old label '${existingLabel.name}' from repository: ${deleteLabelError.message}`
+              )
+            } else {
+              core.warning(
+                `Failed to delete old label '${existingLabel.name}' from repository: Unknown error`
+              )
+            }
+          }
+        }
+
         core.setOutput('success', true)
         core.setOutput('message', `Set state: ${key}=${convertedValue}`)
         break
       }
 
       case 'remove': {
-        // Find and remove the state label for this key
-        const labelsToKeep = currentLabels.filter((label) => {
+        // Find the state label to be removed
+        const labelToRemove = currentLabels.find((label) => {
           const parsed = parseStateLabel(label.name, prefix, separator)
-          return !parsed || parsed.key !== key
+          return parsed && parsed.key === key
         })
 
-        // Check if we actually found and removed a label
-        const wasRemoved = labelsToKeep.length < currentLabels.length
-
-        if (!wasRemoved) {
+        if (!labelToRemove) {
           core.setOutput('success', false)
           core.setOutput('message', `Key '${key}' not found`)
         } else {
-          // Update labels
+          // Filter out the label to be removed from the issue
+          const labelsToKeep = currentLabels.filter((label) => {
+            const parsed = parseStateLabel(label.name, prefix, separator)
+            return !parsed || parsed.key !== key
+          })
+
+          // Update issue labels first
           await octokit.rest.issues.setLabels({
             owner,
             repo,
             issue_number: issueNumber,
             labels: labelsToKeep.map((l) => l.name)
           })
+
+          // Then attempt to delete the label from the repository
+          try {
+            await octokit.rest.issues.deleteLabel({
+              owner,
+              repo,
+              name: labelToRemove.name
+            })
+            core.info(`Deleted label '${labelToRemove.name}' from repository`)
+          } catch (deleteLabelError) {
+            // Log warning but don't fail the operation if label deletion fails
+            if (deleteLabelError instanceof Error) {
+              core.warning(
+                `Failed to delete label '${labelToRemove.name}' from repository: ${deleteLabelError.message}`
+              )
+            } else {
+              core.warning(
+                `Failed to delete label '${labelToRemove.name}' from repository: Unknown error`
+              )
+            }
+          }
 
           core.setOutput('success', true)
           core.setOutput('message', `Removed state key: ${key}`)

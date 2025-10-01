@@ -31341,10 +31341,10 @@ async function run() {
         }
         // Initialize Octokit
         const octokit = githubExports.getOctokit(githubToken);
-        coreExports.debug(`Performing operation: ${operation}`);
-        coreExports.debug(`Issue number: ${issueNumber}`);
-        coreExports.debug(`Repository: ${owner}/${repo}`);
-        coreExports.debug(`Prefix: ${prefix}, Separator: ${separator}`);
+        coreExports.info(`Performing operation: ${operation}`);
+        coreExports.info(`Issue number: ${issueNumber}`);
+        coreExports.info(`Repository: ${owner}/${repo}`);
+        coreExports.info(`Prefix: ${prefix}, Separator: ${separator}`);
         // Get current labels for the issue
         const { data: currentLabels } = await octokit.rest.issues.listLabelsOnIssue({
             owner,
@@ -31353,7 +31353,7 @@ async function run() {
         });
         // Extract current state
         const currentState = extractStateLabels(currentLabels, prefix, separator);
-        coreExports.debug(`Current state: ${JSON.stringify(currentState)}`);
+        coreExports.info(`Current state: ${JSON.stringify(currentState)}`);
         // Perform the requested operation
         switch (operation) {
             case 'get': {
@@ -31379,6 +31379,11 @@ async function run() {
             case 'set': {
                 const convertedValue = convertValue(value);
                 const newLabelName = createStateLabelName(key, convertedValue, prefix, separator);
+                // Find any existing state label for this key that needs to be replaced
+                const existingLabel = currentLabels.find((label) => {
+                    const parsed = parseStateLabel(label.name, prefix, separator);
+                    return parsed && parsed.key === key;
+                });
                 // Find and remove any existing state label for this key
                 const labelsToKeep = currentLabels.filter((label) => {
                     const parsed = parseStateLabel(label.name, prefix, separator);
@@ -31393,30 +31398,71 @@ async function run() {
                     issue_number: issueNumber,
                     labels: newLabels
                 });
+                // If there was an existing label, attempt to delete it from the repository
+                if (existingLabel) {
+                    try {
+                        await octokit.rest.issues.deleteLabel({
+                            owner,
+                            repo,
+                            name: existingLabel.name
+                        });
+                        coreExports.info(`Deleted old label '${existingLabel.name}' from repository`);
+                    }
+                    catch (deleteLabelError) {
+                        // Log warning but don't fail the operation if label deletion fails
+                        if (deleteLabelError instanceof Error) {
+                            coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: ${deleteLabelError.message}`);
+                        }
+                        else {
+                            coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: Unknown error`);
+                        }
+                    }
+                }
                 coreExports.setOutput('success', true);
                 coreExports.setOutput('message', `Set state: ${key}=${convertedValue}`);
                 break;
             }
             case 'remove': {
-                // Find and remove the state label for this key
-                const labelsToKeep = currentLabels.filter((label) => {
+                // Find the state label to be removed
+                const labelToRemove = currentLabels.find((label) => {
                     const parsed = parseStateLabel(label.name, prefix, separator);
-                    return !parsed || parsed.key !== key;
+                    return parsed && parsed.key === key;
                 });
-                // Check if we actually found and removed a label
-                const wasRemoved = labelsToKeep.length < currentLabels.length;
-                if (!wasRemoved) {
+                if (!labelToRemove) {
                     coreExports.setOutput('success', false);
                     coreExports.setOutput('message', `Key '${key}' not found`);
                 }
                 else {
-                    // Update labels
+                    // Filter out the label to be removed from the issue
+                    const labelsToKeep = currentLabels.filter((label) => {
+                        const parsed = parseStateLabel(label.name, prefix, separator);
+                        return !parsed || parsed.key !== key;
+                    });
+                    // Update issue labels first
                     await octokit.rest.issues.setLabels({
                         owner,
                         repo,
                         issue_number: issueNumber,
                         labels: labelsToKeep.map((l) => l.name)
                     });
+                    // Then attempt to delete the label from the repository
+                    try {
+                        await octokit.rest.issues.deleteLabel({
+                            owner,
+                            repo,
+                            name: labelToRemove.name
+                        });
+                        coreExports.info(`Deleted label '${labelToRemove.name}' from repository`);
+                    }
+                    catch (deleteLabelError) {
+                        // Log warning but don't fail the operation if label deletion fails
+                        if (deleteLabelError instanceof Error) {
+                            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: ${deleteLabelError.message}`);
+                        }
+                        else {
+                            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: Unknown error`);
+                        }
+                    }
                     coreExports.setOutput('success', true);
                     coreExports.setOutput('message', `Removed state key: ${key}`);
                 }
