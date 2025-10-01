@@ -4,6 +4,7 @@ run-name:
   ${{github.event.inputs.target}}
 
 on:
+  # checkov:skip=CKV_GHA_7: Manual retagging requires controlled user inputs (target + major tag)
   workflow_dispatch:
     inputs:
       target:
