@@ -26,7 +26,7 @@ export function parseStateLabel(
   prefix: string,
   separator: string
 ): { key: string; value: string } | null {
-  const expectedPrefix = `${prefix}${separator}`
+  const expectedPrefix = prefix ? `${prefix}${separator}` : ''
   if (!labelName.startsWith(expectedPrefix)) {
     return null
   }
@@ -58,7 +58,8 @@ export function createStateLabelName(
   prefix: string,
   separator: string
 ): string {
-  return `${prefix}${separator}${key}${separator}${value}`
+  const prefixPart = prefix ? `${prefix}${separator}` : ''
+  return `${prefixPart}${key}${separator}${value}`
 }
 
 /**

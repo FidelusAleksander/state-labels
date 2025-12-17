@@ -54,6 +54,16 @@ describe('Label Utilities', () => {
       const result = parseStateLabel('state--key--value', 'state', '--')
       expect(result).toEqual({ key: 'key', value: 'value' })
     })
+
+    it('should parse label with empty prefix', () => {
+      const result = parseStateLabel('phase::deploy', '', '::')
+      expect(result).toEqual({ key: 'phase', value: 'deploy' })
+    })
+
+    it('should parse label with empty prefix and custom separator', () => {
+      const result = parseStateLabel('env__prod', '', '__')
+      expect(result).toEqual({ key: 'env', value: 'prod' })
+    })
   })
 
   describe('createStateLabelName', () => {
@@ -85,6 +95,16 @@ describe('Label Utilities', () => {
     it('should handle numeric values', () => {
       const result = createStateLabelName('count', '42', 'state', '::')
       expect(result).toBe('state::count::42')
+    })
+
+    it('should handle empty prefix without adding extra separator', () => {
+      const result = createStateLabelName('phase', 'deploy', '', '::')
+      expect(result).toBe('phase::deploy')
+    })
+
+    it('should handle empty prefix with custom separator', () => {
+      const result = createStateLabelName('env', 'prod', '', '__')
+      expect(result).toBe('env__prod')
     })
   })
 

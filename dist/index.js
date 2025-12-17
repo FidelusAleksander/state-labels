@@ -31256,7 +31256,7 @@ var githubExports = requireGithub();
  * @returns Object with key and value, or null if not a state label
  */
 function parseStateLabel(labelName, prefix, separator) {
-    const expectedPrefix = `${prefix}${separator}`;
+    const expectedPrefix = prefix ? `${prefix}${separator}` : '';
     if (!labelName.startsWith(expectedPrefix)) {
         return null;
     }
@@ -31278,7 +31278,8 @@ function parseStateLabel(labelName, prefix, separator) {
  * @returns The formatted label name
  */
 function createStateLabelName(key, value, prefix, separator) {
-    return `${prefix}${separator}${key}${separator}${value}`;
+    const prefixPart = prefix ? `${prefix}${separator}` : '';
+    return `${prefixPart}${key}${separator}${value}`;
 }
 /**
  * Extracts all state labels from a list of labels
