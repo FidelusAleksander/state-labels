@@ -62,6 +62,7 @@ export async function run(): Promise<void> {
     const prefix = core.getInput('prefix')
     const key = core.getInput('key')
     const value = core.getInput('value')
+    const deleteUnusedLabels = core.getBooleanInput('delete-unused-labels')
 
     // Parse repository
     const [owner, repo] = repository.split('/')
@@ -118,7 +119,8 @@ export async function run(): Promise<void> {
       repo,
       issueNumber,
       prefix,
-      separator
+      separator,
+      deleteUnusedLabels
     }
 
     // Perform the requested operation

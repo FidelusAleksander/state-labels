@@ -31312,6 +31312,32 @@ function convertValue(value) {
 }
 
 /**
+ * Check if a label is used by any other issues or pull requests in the repository
+ * @param context - Operation context
+ * @param labelName - Name of the label to check
+ * @returns True if the label is used by other issues/PRs, false otherwise
+ */
+async function isLabelUsedByOthers(context, labelName) {
+    try {
+        // Search for issues with this label, excluding the current issue
+        const { data: issues } = await context.octokit.rest.issues.listForRepo({
+            owner: context.owner,
+            repo: context.repo,
+            labels: labelName,
+            state: 'all',
+            per_page: 100
+        });
+        // Filter out the current issue/PR
+        const otherIssues = issues.filter((issue) => issue.number !== context.issueNumber);
+        return otherIssues.length > 0;
+    }
+    catch (error) {
+        // If there's an error checking, assume the label is used to be safe
+        coreExports.warning(`Failed to check if label '${labelName}' is used by other issues: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        return true;
+    }
+}
+/**
  * Get a single state value by key
  * @param context - Operation context
  * @param key - The state key to retrieve
@@ -31375,24 +31401,31 @@ async function setOperation(context, key, value, currentLabels) {
         issue_number: context.issueNumber,
         labels: newLabels
     });
-    // If there was an existing label, attempt to delete it from the repository
-    if (existingLabel) {
-        try {
-            await context.octokit.rest.issues.deleteLabel({
-                owner: context.owner,
-                repo: context.repo,
-                name: existingLabel.name
-            });
-            coreExports.info(`Deleted old label '${existingLabel.name}' from repository`);
+    // If there was an existing label and delete-unused-labels is enabled,
+    // attempt to delete it from the repository if not used elsewhere
+    if (existingLabel && context.deleteUnusedLabels) {
+        const isUsed = await isLabelUsedByOthers(context, existingLabel.name);
+        if (!isUsed) {
+            try {
+                await context.octokit.rest.issues.deleteLabel({
+                    owner: context.owner,
+                    repo: context.repo,
+                    name: existingLabel.name
+                });
+                coreExports.info(`Deleted old label '${existingLabel.name}' from repository`);
+            }
+            catch (deleteLabelError) {
+                // Log warning but don't fail the operation if label deletion fails
+                if (deleteLabelError instanceof Error) {
+                    coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: ${deleteLabelError.message}`);
+                }
+                else {
+                    coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: Unknown error`);
+                }
+            }
         }
-        catch (deleteLabelError) {
-            // Log warning but don't fail the operation if label deletion fails
-            if (deleteLabelError instanceof Error) {
-                coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: ${deleteLabelError.message}`);
-            }
-            else {
-                coreExports.warning(`Failed to delete old label '${existingLabel.name}' from repository: Unknown error`);
-            }
+        else {
+            coreExports.info(`Skipping deletion of label '${existingLabel.name}' as it is used by other issues/PRs`);
         }
     }
     return {
@@ -31429,22 +31462,31 @@ async function removeOperation(context, key, currentLabels) {
         issue_number: context.issueNumber,
         labels: labelsToKeep.map((l) => l.name)
     });
-    // Then attempt to delete the label from the repository
-    try {
-        await context.octokit.rest.issues.deleteLabel({
-            owner: context.owner,
-            repo: context.repo,
-            name: labelToRemove.name
-        });
-        coreExports.info(`Deleted label '${labelToRemove.name}' from repository`);
-    }
-    catch (deleteLabelError) {
-        // Log warning but don't fail the operation if label deletion fails
-        if (deleteLabelError instanceof Error) {
-            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: ${deleteLabelError.message}`);
+    // If delete-unused-labels is enabled, attempt to delete the label from the repository
+    // only if not used by other issues/PRs
+    if (context.deleteUnusedLabels) {
+        const isUsed = await isLabelUsedByOthers(context, labelToRemove.name);
+        if (!isUsed) {
+            try {
+                await context.octokit.rest.issues.deleteLabel({
+                    owner: context.owner,
+                    repo: context.repo,
+                    name: labelToRemove.name
+                });
+                coreExports.info(`Deleted label '${labelToRemove.name}' from repository`);
+            }
+            catch (deleteLabelError) {
+                // Log warning but don't fail the operation if label deletion fails
+                if (deleteLabelError instanceof Error) {
+                    coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: ${deleteLabelError.message}`);
+                }
+                else {
+                    coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: Unknown error`);
+                }
+            }
         }
         else {
-            coreExports.warning(`Failed to delete label '${labelToRemove.name}' from repository: Unknown error`);
+            coreExports.info(`Skipping deletion of label '${labelToRemove.name}' as it is used by other issues/PRs`);
         }
     }
     return {
@@ -31496,6 +31538,7 @@ async function run() {
         const prefix = coreExports.getInput('prefix');
         const key = coreExports.getInput('key');
         const value = coreExports.getInput('value');
+        const deleteUnusedLabels = coreExports.getBooleanInput('delete-unused-labels');
         // Parse repository
         const [owner, repo] = repository.split('/');
         if (!owner || !repo) {
@@ -31537,7 +31580,8 @@ async function run() {
             repo,
             issueNumber,
             prefix,
-            separator
+            separator,
+            deleteUnusedLabels
         };
         // Perform the requested operation
         let result;

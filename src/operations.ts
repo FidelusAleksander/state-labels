@@ -18,6 +18,7 @@ export interface OperationContext {
   issueNumber: number
   prefix: string
   separator: string
+  deleteUnusedLabels: boolean
 }
 
 /**
@@ -27,6 +28,41 @@ export interface OperationOutput {
   success: boolean
   value?: string | null
   state?: string
+}
+
+/**
+ * Check if a label is used by any other issues or pull requests in the repository
+ * @param context - Operation context
+ * @param labelName - Name of the label to check
+ * @returns True if the label is used by other issues/PRs, false otherwise
+ */
+async function isLabelUsedByOthers(
+  context: OperationContext,
+  labelName: string
+): Promise<boolean> {
+  try {
+    // Search for issues with this label, excluding the current issue
+    const { data: issues } = await context.octokit.rest.issues.listForRepo({
+      owner: context.owner,
+      repo: context.repo,
+      labels: labelName,
+      state: 'all',
+      per_page: 100
+    })
+
+    // Filter out the current issue/PR
+    const otherIssues = issues.filter(
+      (issue) => issue.number !== context.issueNumber
+    )
+
+    return otherIssues.length > 0
+  } catch (error) {
+    // If there's an error checking, assume the label is used to be safe
+    core.warning(
+      `Failed to check if label '${labelName}' is used by other issues: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+    return true
+  }
 }
 
 /**
@@ -136,26 +172,35 @@ export async function setOperation(
     labels: newLabels
   })
 
-  // If there was an existing label, attempt to delete it from the repository
-  if (existingLabel) {
-    try {
-      await context.octokit.rest.issues.deleteLabel({
-        owner: context.owner,
-        repo: context.repo,
-        name: existingLabel.name
-      })
-      core.info(`Deleted old label '${existingLabel.name}' from repository`)
-    } catch (deleteLabelError) {
-      // Log warning but don't fail the operation if label deletion fails
-      if (deleteLabelError instanceof Error) {
-        core.warning(
-          `Failed to delete old label '${existingLabel.name}' from repository: ${deleteLabelError.message}`
-        )
-      } else {
-        core.warning(
-          `Failed to delete old label '${existingLabel.name}' from repository: Unknown error`
-        )
+  // If there was an existing label and delete-unused-labels is enabled,
+  // attempt to delete it from the repository if not used elsewhere
+  if (existingLabel && context.deleteUnusedLabels) {
+    const isUsed = await isLabelUsedByOthers(context, existingLabel.name)
+
+    if (!isUsed) {
+      try {
+        await context.octokit.rest.issues.deleteLabel({
+          owner: context.owner,
+          repo: context.repo,
+          name: existingLabel.name
+        })
+        core.info(`Deleted old label '${existingLabel.name}' from repository`)
+      } catch (deleteLabelError) {
+        // Log warning but don't fail the operation if label deletion fails
+        if (deleteLabelError instanceof Error) {
+          core.warning(
+            `Failed to delete old label '${existingLabel.name}' from repository: ${deleteLabelError.message}`
+          )
+        } else {
+          core.warning(
+            `Failed to delete old label '${existingLabel.name}' from repository: Unknown error`
+          )
+        }
       }
+    } else {
+      core.info(
+        `Skipping deletion of label '${existingLabel.name}' as it is used by other issues/PRs`
+      )
     }
   }
 
@@ -210,23 +255,34 @@ export async function removeOperation(
     labels: labelsToKeep.map((l) => l.name)
   })
 
-  // Then attempt to delete the label from the repository
-  try {
-    await context.octokit.rest.issues.deleteLabel({
-      owner: context.owner,
-      repo: context.repo,
-      name: labelToRemove.name
-    })
-    core.info(`Deleted label '${labelToRemove.name}' from repository`)
-  } catch (deleteLabelError) {
-    // Log warning but don't fail the operation if label deletion fails
-    if (deleteLabelError instanceof Error) {
-      core.warning(
-        `Failed to delete label '${labelToRemove.name}' from repository: ${deleteLabelError.message}`
-      )
+  // If delete-unused-labels is enabled, attempt to delete the label from the repository
+  // only if not used by other issues/PRs
+  if (context.deleteUnusedLabels) {
+    const isUsed = await isLabelUsedByOthers(context, labelToRemove.name)
+
+    if (!isUsed) {
+      try {
+        await context.octokit.rest.issues.deleteLabel({
+          owner: context.owner,
+          repo: context.repo,
+          name: labelToRemove.name
+        })
+        core.info(`Deleted label '${labelToRemove.name}' from repository`)
+      } catch (deleteLabelError) {
+        // Log warning but don't fail the operation if label deletion fails
+        if (deleteLabelError instanceof Error) {
+          core.warning(
+            `Failed to delete label '${labelToRemove.name}' from repository: ${deleteLabelError.message}`
+          )
+        } else {
+          core.warning(
+            `Failed to delete label '${labelToRemove.name}' from repository: Unknown error`
+          )
+        }
+      }
     } else {
-      core.warning(
-        `Failed to delete label '${labelToRemove.name}' from repository: Unknown error`
+      core.info(
+        `Skipping deletion of label '${labelToRemove.name}' as it is used by other issues/PRs`
       )
     }
   }

@@ -41,6 +41,12 @@ inputs:
     description: 'Repository in owner/repo format'
     required: false
     default: ${{ github.repository }}
+  delete-unused-labels:
+    description:
+      'Whether to delete labels from the repository when they are removed/unset
+      (only if not used by other issues/PRs)'
+    required: false
+    default: 'false'
 
 # Define your outputs here.
 outputs:

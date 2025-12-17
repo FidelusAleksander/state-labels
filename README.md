@@ -67,16 +67,17 @@ labels remain untouched.
 
 ## Inputs ⚙️
 
-| Input          | Description                                                                   | Required | Default                    |
-| -------------- | ----------------------------------------------------------------------------- | -------- | -------------------------- |
-| `operation`    | One of `get`, `get-all`, `set`, `remove`                                      | Yes      | -                          |
-| `issue-number` | Issue or PR number to operate on (auto-detected from context if not provided) | No       | -                          |
-| `key`          | State key (needed for `get`, `set`, `remove`)                                 | No       | -                          |
-| `value`        | State value (needed for `set`)                                                | No       | -                          |
-| `prefix`       | Label prefix                                                                  | No       | `state`                    |
-| `separator`    | Separator between prefix, key, value                                          | No       | `::`                       |
-| `repository`   | Repository in `owner/repo` format                                             | No       | `${{ github.repository }}` |
-| `github-token` | Token used for API calls                                                      | No       | `${{ github.token }}`      |
+| Input                  | Description                                                                                        | Required | Default                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------- | -------- | -------------------------- |
+| `operation`            | One of `get`, `get-all`, `set`, `remove`                                                           | Yes      | -                          |
+| `issue-number`         | Issue or PR number to operate on (auto-detected from context if not provided)                      | No       | -                          |
+| `key`                  | State key (needed for `get`, `set`, `remove`)                                                      | No       | -                          |
+| `value`                | State value (needed for `set`)                                                                     | No       | -                          |
+| `prefix`               | Label prefix                                                                                       | No       | `state`                    |
+| `separator`            | Separator between prefix, key, value                                                               | No       | `::`                       |
+| `repository`           | Repository in `owner/repo` format                                                                  | No       | `${{ github.repository }}` |
+| `github-token`         | Token used for API calls                                                                           | No       | `${{ github.token }}`      |
+| `delete-unused-labels` | Whether to delete labels from repository when removed/unset (only if not used by other issues/PRs) | No       | `false`                    |
 
 ## Outputs 📤
 
@@ -184,3 +185,19 @@ Example get-all output:
 ```
 
 Creates label: `workflow__env__production`
+
+### Deleting unused labels
+
+By default, labels are removed from issues/PRs but remain in the repository.
+Enable automatic cleanup of unused labels:
+
+```yaml
+- uses: FidelusAleksander/state-labels@v1
+  with:
+    operation: remove
+    key: status
+    delete-unused-labels: true
+```
+
+When `delete-unused-labels` is `true`, the action will delete the label from the
+repository only if it's not used by any other issues or pull requests.

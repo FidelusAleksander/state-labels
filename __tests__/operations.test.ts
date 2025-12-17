@@ -21,7 +21,8 @@ describe('Operations', () => {
     repo: 'test-repo',
     issueNumber: 123,
     prefix: 'state',
-    separator: '::'
+    separator: '::',
+    deleteUnusedLabels: false
   }
 
   beforeEach(() => {
@@ -172,11 +173,7 @@ describe('Operations', () => {
           'state::step::2'
         ]
       })
-      expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
-        owner: 'test-owner',
-        repo: 'test-repo',
-        name: 'state::step::1'
-      })
+      expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
       expect(result).toEqual({ success: true })
     })
 
@@ -214,13 +211,20 @@ describe('Operations', () => {
       expect(result).toEqual({ success: true })
     })
 
-    it('should handle label deletion failure gracefully', async () => {
+    it('should handle label deletion failure gracefully when deleteUnusedLabels is true', async () => {
+      const contextWithDelete = {
+        ...mockContext,
+        deleteUnusedLabels: true
+      }
+      github.mockOctokit.rest.issues.listForRepo.mockResolvedValue({
+        data: []
+      })
       github.mockOctokit.rest.issues.deleteLabel.mockRejectedValue(
         new Error('Label deletion failed')
       )
 
       const result = await setOperation(
-        mockContext,
+        contextWithDelete,
         'step',
         '2',
         github.mockLabels
@@ -263,10 +267,109 @@ describe('Operations', () => {
       })
       expect(result).toEqual({ success: true })
     })
+
+    it('should not delete old label when deleteUnusedLabels is false', async () => {
+      const result = await setOperation(
+        mockContext,
+        'step',
+        '2',
+        github.mockLabels
+      )
+
+      expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
+      expect(github.mockOctokit.rest.issues.listForRepo).not.toHaveBeenCalled()
+      expect(result).toEqual({ success: true })
+    })
+
+    it('should delete old label when deleteUnusedLabels is true and not used by others', async () => {
+      const contextWithDelete = {
+        ...mockContext,
+        deleteUnusedLabels: true
+      }
+      github.mockOctokit.rest.issues.listForRepo.mockResolvedValue({
+        data: []
+      })
+
+      const result = await setOperation(
+        contextWithDelete,
+        'step',
+        '2',
+        github.mockLabels
+      )
+
+      expect(github.mockOctokit.rest.issues.listForRepo).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        labels: 'state::step::1',
+        state: 'all',
+        per_page: 100
+      })
+      expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        name: 'state::step::1'
+      })
+      expect(result).toEqual({ success: true })
+    })
+
+    it('should not delete old label when deleteUnusedLabels is true but label is used by others', async () => {
+      const contextWithDelete = {
+        ...mockContext,
+        deleteUnusedLabels: true
+      }
+      github.mockOctokit.rest.issues.listForRepo.mockResolvedValue({
+        data: [{ number: 456, labels: github.mockLabels }]
+      })
+
+      const result = await setOperation(
+        contextWithDelete,
+        'step',
+        '2',
+        github.mockLabels
+      )
+
+      expect(github.mockOctokit.rest.issues.listForRepo).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        labels: 'state::step::1',
+        state: 'all',
+        per_page: 100
+      })
+      expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
+      expect(core.info).toHaveBeenCalledWith(
+        "Skipping deletion of label 'state::step::1' as it is used by other issues/PRs"
+      )
+      expect(result).toEqual({ success: true })
+    })
+
+    it('should handle listForRepo failure gracefully', async () => {
+      const contextWithDelete = {
+        ...mockContext,
+        deleteUnusedLabels: true
+      }
+      github.mockOctokit.rest.issues.listForRepo.mockRejectedValue(
+        new Error('API error')
+      )
+
+      const result = await setOperation(
+        contextWithDelete,
+        'step',
+        '2',
+        github.mockLabels
+      )
+
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Failed to check if label 'state::step::1' is used by other issues"
+        )
+      )
+      expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
+      expect(result).toEqual({ success: true })
+    })
   })
 
   describe('removeOperation', () => {
-    it('should remove existing state key', async () => {
+    it('should remove existing state key but not delete from repo when deleteUnusedLabels is false', async () => {
       const result = await removeOperation(
         mockContext,
         'step',
@@ -279,11 +382,8 @@ describe('Operations', () => {
         issue_number: 123,
         labels: ['bug', 'state::status::pending', 'enhancement']
       })
-      expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
-        owner: 'test-owner',
-        repo: 'test-repo',
-        name: 'state::step::1'
-      })
+      expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
+      expect(github.mockOctokit.rest.issues.listForRepo).not.toHaveBeenCalled()
       expect(result).toEqual({
         success: true
       })
@@ -301,13 +401,91 @@ describe('Operations', () => {
       expect(result).toEqual({ success: false })
     })
 
+    it('should delete label from repo when deleteUnusedLabels is true and not used by others', async () => {
+      const contextWithDelete = {
+        ...mockContext,
+        deleteUnusedLabels: true
+      }
+      github.mockOctokit.rest.issues.listForRepo.mockResolvedValue({
+        data: []
+      })
+
+      const result = await removeOperation(
+        contextWithDelete,
+        'step',
+        github.mockLabels
+      )
+
+      expect(github.mockOctokit.rest.issues.setLabels).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        issue_number: 123,
+        labels: ['bug', 'state::status::pending', 'enhancement']
+      })
+      expect(github.mockOctokit.rest.issues.listForRepo).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        labels: 'state::step::1',
+        state: 'all',
+        per_page: 100
+      })
+      expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        name: 'state::step::1'
+      })
+      expect(result).toEqual({ success: true })
+    })
+
+    it('should not delete label from repo when deleteUnusedLabels is true but label is used by others', async () => {
+      const contextWithDelete = {
+        ...mockContext,
+        deleteUnusedLabels: true
+      }
+      github.mockOctokit.rest.issues.listForRepo.mockResolvedValue({
+        data: [{ number: 456, labels: github.mockLabels }]
+      })
+
+      const result = await removeOperation(
+        contextWithDelete,
+        'step',
+        github.mockLabels
+      )
+
+      expect(github.mockOctokit.rest.issues.setLabels).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        issue_number: 123,
+        labels: ['bug', 'state::status::pending', 'enhancement']
+      })
+      expect(github.mockOctokit.rest.issues.listForRepo).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        labels: 'state::step::1',
+        state: 'all',
+        per_page: 100
+      })
+      expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
+      expect(core.info).toHaveBeenCalledWith(
+        "Skipping deletion of label 'state::step::1' as it is used by other issues/PRs"
+      )
+      expect(result).toEqual({ success: true })
+    })
+
     it('should handle label deletion failure gracefully', async () => {
+      const contextWithDelete = {
+        ...mockContext,
+        deleteUnusedLabels: true
+      }
+      github.mockOctokit.rest.issues.listForRepo.mockResolvedValue({
+        data: []
+      })
       github.mockOctokit.rest.issues.deleteLabel.mockRejectedValue(
         new Error('Label deletion failed')
       )
 
       const result = await removeOperation(
-        mockContext,
+        contextWithDelete,
         'step',
         github.mockLabels
       )

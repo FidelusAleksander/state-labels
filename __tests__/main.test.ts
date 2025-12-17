@@ -30,6 +30,9 @@ describe('Main Action Orchestration', () => {
   function mockInputs(overrides: Record<string, string> = {}) {
     const inputs = { ...defaultInputs, ...overrides }
     core.getInput.mockImplementation((name: string) => inputs[name])
+    core.getBooleanInput.mockImplementation(
+      (name: string) => inputs[name] === 'true'
+    )
   }
 
   beforeEach(() => {
@@ -257,11 +260,7 @@ describe('Main Action Orchestration', () => {
           'state::step::2'
         ]
       })
-      expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
-        owner: 'test-owner',
-        repo: 'test-repo',
-        name: 'state::step::1'
-      })
+      expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
     })
 
@@ -308,11 +307,7 @@ describe('Main Action Orchestration', () => {
         issue_number: 123,
         labels: ['bug', 'state::status::pending', 'enhancement']
       })
-      expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
-        owner: 'test-owner',
-        repo: 'test-repo',
-        name: 'state::step::1'
-      })
+      expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
       expect(core.setOutput).toHaveBeenCalledWith('success', true)
     })
 
