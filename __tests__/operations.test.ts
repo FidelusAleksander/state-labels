@@ -302,7 +302,8 @@ describe('Operations', () => {
         repo: 'test-repo',
         labels: 'state::step::1',
         state: 'all',
-        per_page: 100
+        per_page: 100,
+        page: 1
       })
       expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
         owner: 'test-owner',
@@ -333,7 +334,8 @@ describe('Operations', () => {
         repo: 'test-repo',
         labels: 'state::step::1',
         state: 'all',
-        per_page: 100
+        per_page: 100,
+        page: 1
       })
       expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
       expect(core.info).toHaveBeenCalledWith(
@@ -427,7 +429,8 @@ describe('Operations', () => {
         repo: 'test-repo',
         labels: 'state::step::1',
         state: 'all',
-        per_page: 100
+        per_page: 100,
+        page: 1
       })
       expect(github.mockOctokit.rest.issues.deleteLabel).toHaveBeenCalledWith({
         owner: 'test-owner',
@@ -463,7 +466,8 @@ describe('Operations', () => {
         repo: 'test-repo',
         labels: 'state::step::1',
         state: 'all',
-        per_page: 100
+        per_page: 100,
+        page: 1
       })
       expect(github.mockOctokit.rest.issues.deleteLabel).not.toHaveBeenCalled()
       expect(core.info).toHaveBeenCalledWith(

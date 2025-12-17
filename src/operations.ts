@@ -42,20 +42,39 @@ async function isLabelUsedByOthers(
 ): Promise<boolean> {
   try {
     // Search for issues with this label, excluding the current issue
-    const { data: issues } = await context.octokit.rest.issues.listForRepo({
-      owner: context.owner,
-      repo: context.repo,
-      labels: labelName,
-      state: 'all',
-      per_page: 100
-    })
+    // We only need to check if there's at least one other issue, so we can stop early
+    let page = 1
+    const perPage = 100
 
-    // Filter out the current issue/PR
-    const otherIssues = issues.filter(
-      (issue) => issue.number !== context.issueNumber
-    )
+    while (true) {
+      const { data: issues } = await context.octokit.rest.issues.listForRepo({
+        owner: context.owner,
+        repo: context.repo,
+        labels: labelName,
+        state: 'all',
+        per_page: perPage,
+        page
+      })
 
-    return otherIssues.length > 0
+      // Filter out the current issue/PR
+      const otherIssues = issues.filter(
+        (issue) => issue.number !== context.issueNumber
+      )
+
+      // If we found any other issues with this label, return true
+      if (otherIssues.length > 0) {
+        return true
+      }
+
+      // If we got fewer results than requested, we've reached the end
+      if (issues.length < perPage) {
+        break
+      }
+
+      page++
+    }
+
+    return false
   } catch (error) {
     // If there's an error checking, assume the label is used to be safe
     core.warning(
